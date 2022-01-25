@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32113.165
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LINQ_To_Twitter_OAuth2_Sample.Server", "LINQ_To_Twitter_OAuth2_Sample\Server\LINQ_To_Twitter_OAuth2_Sample.Server.csproj", "{B5EC030C-D671-4BF3-A814-97A7EBB9DB2B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LINQ_To_Twitter_OAuth2_Sample.Client", "LINQ_To_Twitter_OAuth2_Sample\Client\LINQ_To_Twitter_OAuth2_Sample.Client.csproj", "{13B08746-BC8C-4273-BDFE-00036A0A3EFB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LINQ_To_Twitter_OAuth2_Sample.Shared", "LINQ_To_Twitter_OAuth2_Sample\Shared\LINQ_To_Twitter_OAuth2_Sample.Shared.csproj", "{3E570E4A-74FB-4C5C-B258-6215A0E7D5F8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B5EC030C-D671-4BF3-A814-97A7EBB9DB2B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5EC030C-D671-4BF3-A814-97A7EBB9DB2B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5EC030C-D671-4BF3-A814-97A7EBB9DB2B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5EC030C-D671-4BF3-A814-97A7EBB9DB2B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{13B08746-BC8C-4273-BDFE-00036A0A3EFB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{13B08746-BC8C-4273-BDFE-00036A0A3EFB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{13B08746-BC8C-4273-BDFE-00036A0A3EFB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{13B08746-BC8C-4273-BDFE-00036A0A3EFB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3E570E4A-74FB-4C5C-B258-6215A0E7D5F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3E570E4A-74FB-4C5C-B258-6215A0E7D5F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3E570E4A-74FB-4C5C-B258-6215A0E7D5F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3E570E4A-74FB-4C5C-B258-6215A0E7D5F8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {34AFFA9C-EA89-4B69-87EE-584E90C34DD1}
+	EndGlobalSection
+EndGlobal
