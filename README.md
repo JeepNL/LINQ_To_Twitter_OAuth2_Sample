@@ -13,7 +13,13 @@ This sample is using `https://localhost` (*not 127.0.0.1*) for a valid localhost
 
 This app is configured at developer.twitter.com as a **Web App**, not a Single Page App. Twitter Description: "Web App uses confidential clients, which securely authenticate with the authorization server. They keep your client secret safe."
 
-Notable files:
+**Notable files:**
+
+*Client:*
+
+ * [Client/Pages/LinqToTwitter.razor](https://github.com/JeepNL/LINQ_To_Twitter_OAuth2_Sample/blob/master/LINQ_To_Twitter_OAuth2_Sample/Client/Pages/Linq2Twitter.razor)
+
+*Server*
 
  * [Server/Program.cs](https://github.com/JeepNL/LINQ_To_Twitter_OAuth2_Sample/tree/master/LINQ_To_Twitter_OAuth2_Sample/Server/Program.cs)
  * [Server/Controllers/OAuth2Controller.cs](https://github.com/JeepNL/LINQ_To_Twitter_OAuth2_Sample/tree/master/LINQ_To_Twitter_OAuth2_Sample/Server/Controllers/OAuth2Controller.cs)
