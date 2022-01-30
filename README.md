@@ -4,8 +4,6 @@ Joe Mayo's Linq To Twitter OAuth2 blog post: https://joemayo.medium.com/using-oa
 
 For this sample to work you'll need to add the file `/Server/twitterkeys.json` which is called in `/Server/Program.cs` (line 5-13) and sets the `TwitterClientID` & `TwitterClientSecret` enviroment variables.
 
-*twitterkeys.json*
-
     TwitterClientID="Your Twitter Client ID"
     TwitterClientSecret="Your Twitter Client Secret"
 
