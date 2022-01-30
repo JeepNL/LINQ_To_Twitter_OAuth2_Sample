@@ -20,6 +20,8 @@ Notable files:
 
 Error log (`Server/Controllers/OAuth2Controller.cs`) at **CompleteAsync** `https://localhost/OAuth2/CompleteAsync?state=MyState&code=<RETURNED_TWITTER_CODE>`:
 
+**TwitterQueryException: Missing valid authorization header - Please visit the LINQ to Twitter FAQ (at the HelpLink) for help on resolving this error.**
+
     info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[2]
           Executed action LINQ_To_Twitter_OAuth2_Sample.Server.Controllers.OAuth2Controller.CompleteAsync (LINQ_To_Twitter_OAuth2_Sample.Server) in 292.2686ms
     info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
