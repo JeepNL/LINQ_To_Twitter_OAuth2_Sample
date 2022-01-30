@@ -11,6 +11,8 @@ For this sample to work you'll need to add the file `/Server/twitterkeys.json` w
 
 This sample is using `https://localhost` (*not 127.0.0.1*) for a valid localhost client certificate, so the Twitter callback url is: `https://localhost/OAuth2/CompleteAsync`
 
+This app is configured at developer.twitter.com as a **Web App**, not a Single Page App. Twitter Description: "Web App uses confidential clients, which securely authenticate with the authorization server. They keep your client secret safe."
+
 Notable files:
 
  * [Server/Program.cs](https://github.com/JeepNL/LINQ_To_Twitter_OAuth2_Sample/tree/master/LINQ_To_Twitter_OAuth2_Sample/Server/Program.cs)
