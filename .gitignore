@@ -362,3 +362,5 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /LINQ_To_Twitter_OAuth2_Sample/Server/twitterkeys.json
+/LINQ_To_Twitter_OAuth2_Sample/Server/twitterkeys.ini
+/LINQ_To_Twitter_OAuth2_Sample/Server/twitterkeys.Developement.ini

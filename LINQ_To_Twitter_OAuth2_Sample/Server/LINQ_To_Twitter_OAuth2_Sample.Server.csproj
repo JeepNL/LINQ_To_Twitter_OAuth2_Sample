@@ -7,6 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="twitterkeys.ini" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="twitterkeys.ini" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LinqToTwitter.AspNet" Version="6.11.0" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="6.0.1" />
   </ItemGroup>
 
