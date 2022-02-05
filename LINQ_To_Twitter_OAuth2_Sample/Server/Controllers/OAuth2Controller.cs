@@ -36,21 +36,22 @@ public class OAuth2Controller : ControllerBase
 					"tweet.moderate.write",
 					"users.read",
 					"follows.read",
-					"follows.write",
+					//"follows.write",
 					"offline.access",
-					"space.read",
+					//"space.read",
 					"mute.read",
-					"mute.write",
+					//"mute.write",
 					"like.read",
-					"like.write",
+					//"like.write",
 					"block.read",
-					"block.write"
+					//"block.write"
 				},
 				RedirectUri = twitterCallbackUrl,
 			}
 		};
 
-		return await auth.BeginAuthorizeAsync("MyState");
+		string stateId = Guid.NewGuid().ToString().Replace("-","");
+		return await auth.BeginAuthorizeAsync(stateId);
 	}
 
 	public async Task<IActionResult> Complete()
@@ -70,12 +71,16 @@ public class OAuth2Controller : ControllerBase
 		await auth.CompleteAuthorizeAsync(code, state);
 		IOAuth2CredentialStore? credentials = auth.CredentialStore as IOAuth2CredentialStore;
 
-		TwitterContext? twitterCtx = new TwitterContext(auth);
+		Console.WriteLine("\n");
+		foreach (var key in HttpContext.Session.Keys)
+		{
+			Console.WriteLine($"***** key: {key}: {HttpContext.Session.GetString(key)}");
+		}
 
-		Console.WriteLine($"\n\n*****  credentials.ClientID: {twitterCtx.TwitterUser}");
-		Console.WriteLine($"*****  credentials?.State: {credentials?.State}");
-		Console.WriteLine($"*****  credentials?.ScreenName: {credentials?.ScreenName}");
-		Console.WriteLine($"*****  credentials?.UserID: {credentials?.UserID}\n\n");
+		Console.WriteLine($"\n***** credentials?.ClientID: {credentials?.ClientID}");
+		Console.WriteLine($"***** credentials?.State: {credentials?.State}");
+		Console.WriteLine($"***** credentials?.ScreenName: {credentials?.ScreenName}");
+		Console.WriteLine($"***** credentials?.UserID: {credentials?.UserID}\n\n");
 
 		string url = $"/l2tcallback?access_token={credentials?.AccessToken}&refresh_token={credentials?.RefreshToken}&is_authenticated=true";
 		return Redirect(url);
