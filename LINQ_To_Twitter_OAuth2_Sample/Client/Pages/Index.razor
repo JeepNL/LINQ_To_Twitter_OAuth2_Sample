@@ -1,9 +1,65 @@
 ﻿@page "/"
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+@inject NavigationManager NavMan
+@inject HttpClient Http
 
 <PageTitle>Index</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>Hello, Twitter!</h1>
 
-Welcome to your new app.
+@if (!l2tTokens.IsAuthenticated)
+{
+    <p><button class="btn btn-primary" @onclick=BeginOAuth2>Twitter OAuth2</button></p>
+}
+else
+{
+    <EditForm Model="@l2tTweet" OnValidSubmit="@HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+        <div class="row align-items-center">
+            <div class="col-sm-4">
+                <InputText id="textarea" class="form-control" @bind-Value=l2tTweet.Text />
+            </div>
+            <div class="col-sm">
+                <button type="submit" class="btn btn-primary">Tweet</button>
+            </div>
+        </div>
+
+    </EditForm>
+
+    @if (!string.IsNullOrEmpty(l2tTweet.TweetId))
+    {
+        <p>Tweet ID: @l2tTweet.TweetId</p>
+    }
+}
+
+@code {
+    L2TBase l2tTokens = new();
+    L2TTweet l2tTweet = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        l2tTokens = await localStorage.GetItemAsync<L2TBase>("l2t_tokens");
+        if (l2tTokens is null)
+            l2tTokens = new() { AccessToken = "", RefreshToken = "", IsAuthenticated = false };
+        await localStorage.SetItemAsync<L2TBase>("l2t_tokens", l2tTokens);
+    }
+
+    private void BeginOAuth2()
+    {
+        NavMan.NavigateTo("/OAuth2/Begin", true);
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        L2TTweet postTweet = new()
+            {
+                AccessToken = l2tTokens.AccessToken,
+                RefreshToken = l2tTokens.RefreshToken,
+                Text = l2tTweet.Text
+            };
+        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/PostTweet", postTweet);
+        l2tTweet = await responseMessage.Content.ReadFromJsonAsync<L2TTweet>() ?? new() { Text = "", TweetId = "-1" };
+    }
+}

@@ -1,0 +1,28 @@
+﻿@page "/l2tcallback"
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+@inject NavigationManager NavMan
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? access_token { get; set; }
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? refresh_token { get; set; }
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? is_authenticated { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        L2TBase L2TTokens = new()
+            {
+                AccessToken = access_token ?? "",
+                RefreshToken = refresh_token ?? "",
+                IsAuthenticated = (is_authenticated == "true") ? true : false,
+            };
+        await localStorage.SetItemAsync<L2TBase>("l2t_tokens", L2TTokens);
+
+        NavMan.NavigateTo("/");
+    }
+}

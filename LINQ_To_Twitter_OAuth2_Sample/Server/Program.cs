@@ -1,7 +1,6 @@
-using System.Net;
-
 var builder = WebApplication.CreateBuilder(args);
 
+// read twitterkeys.ini file, set environment variables.
 builder.Host.ConfigureAppConfiguration((hostingContext, config) =>
 {
 	// see: https://docs.microsoft.com/en-us/aspnet/core/fundamentals/configuration/?view=aspnetcore-6.0#ini-configuration-provider
@@ -12,24 +11,18 @@ builder.Host.ConfigureAppConfiguration((hostingContext, config) =>
 	config.AddEnvironmentVariables();
 });
 
-ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-
+// Add services to the container.
 builder.Services.AddDistributedMemoryCache();
-
 builder.Services.AddSession(options =>
 {
 	options.Cookie.HttpOnly = true;
 	options.Cookie.IsEssential = true;
 	options.IdleTimeout = TimeSpan.FromMinutes(30);
 });
-
-// Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
 var app = builder.Build();
-
-// ====================================================================================================
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -48,12 +41,9 @@ app.UseHttpsRedirection();
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
-
 app.UseRouting();
-
-app.UseAuthorization();
-
 app.UseSession();
+app.UseAuthorization();
 
 app.MapRazorPages();
 app.MapControllers();
