@@ -17,15 +17,13 @@ Also at [developer.twitter.com](https://developer.twitter.com/) set your 'User a
 
 **Notable files:**
 
-*Client:*
+  * Client:
+    * [Client/Pages/Index.razor](LINQ_To_Twitter_OAuth2_Sample/Client/Pages/Index.razor)
+    * [Client/Pages/Callback.razor](LINQ_To_Twitter_OAuth2_Sample/Client/Pages/Callback.razor)
 
- * [Client/Pages/Index.razor](LINQ_To_Twitter_OAuth2_Sample/Client/Pages/Index.razor)
- * [Client/Pages/Callback.razor](LINQ_To_Twitter_OAuth2_Sample/Client/Pages/Callback.razor)
-
-*Server*
-
- * [Server/Program.cs](LINQ_To_Twitter_OAuth2_Sample/Server/Program.cs)
- * [Server/Controllers/OAuth2Controller.cs](LINQ_To_Twitter_OAuth2_Sample/Server/Controllers/OAuth2Controller.cs)
+  * Server:
+    * [Server/Program.cs](LINQ_To_Twitter_OAuth2_Sample/Server/Program.cs)
+    * [Server/Controllers/OAuth2Controller.cs](LINQ_To_Twitter_OAuth2_Sample/Server/Controllers/OAuth2Controller.cs)
 
 **Joe Mayo's LINQ to Twitter ASP.NET 6 OAuth2 GitHub Examples:**
 
