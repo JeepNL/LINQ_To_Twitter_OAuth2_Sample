@@ -23,7 +23,7 @@ public class OAuth2Controller : ControllerBase
 	{
 		string twitterCallbackUrl = Request.GetDisplayUrl().Replace("Begin", "Complete");
 
-		var auth = new MvcOAuth2Authorizer
+		MvcOAuth2Authorizer auth = new()
 		{
 			CredentialStore = new OAuth2SessionCredentialStore(HttpContext.Session)
 			{
@@ -56,7 +56,7 @@ public class OAuth2Controller : ControllerBase
 
 	public async Task<IActionResult> Complete()
 	{
-		var auth = new OAuth2Authorizer
+		OAuth2Authorizer auth = new()
 		{
 			CredentialStore = new OAuth2SessionCredentialStore(HttpContext.Session)
 		};
@@ -69,7 +69,7 @@ public class OAuth2Controller : ControllerBase
 			return Redirect("/l2tcallback?is_authenticated=false");
 
 		await auth.CompleteAuthorizeAsync(code, state);
-		IOAuth2CredentialStore? credentials = auth.CredentialStore as IOAuth2CredentialStore;
+		IOAuth2CredentialStore credentials = auth.CredentialStore as IOAuth2CredentialStore;
 
 		Console.WriteLine("\n");
 		foreach (var key in HttpContext.Session.Keys)
@@ -77,10 +77,10 @@ public class OAuth2Controller : ControllerBase
 			Console.WriteLine($"***** key: {key}: {HttpContext.Session.GetString(key)}");
 		}
 
-		Console.WriteLine($"\n***** credentials?.ClientID: {credentials?.ClientID}");
-		Console.WriteLine($"***** credentials?.State: {credentials?.State}");
-		Console.WriteLine($"***** credentials?.ScreenName: {credentials?.ScreenName}");
-		Console.WriteLine($"***** credentials?.UserID: {credentials?.UserID}\n\n");
+		Console.WriteLine($"\n***** credentials.ClientID: {credentials.ClientID}");
+		Console.WriteLine($"***** credentials.State: {credentials.State}");
+		Console.WriteLine($"***** credentials.ScreenName: {credentials.ScreenName}");
+		Console.WriteLine($"***** credentials.UserID: {credentials.UserID}\n\n");
 
 		string url = $"/l2tcallback?access_token={credentials?.AccessToken}&refresh_token={credentials?.RefreshToken}&is_authenticated=true";
 		return Redirect(url);
@@ -95,23 +95,33 @@ public class OAuth2Controller : ControllerBase
 	//}
 
 	[HttpPost]
-	public async Task<ActionResult<L2TTweet>> PostTweet(L2TTweet postTweet)
+	public async Task<ActionResult<L2TTweet>> PostTweet(L2TTweet l2tTweet)
 	{
-        if (!string.IsNullOrEmpty(postTweet.Text))
-        {
-			OAuth2Authorizer? auth = new()
+		if (!string.IsNullOrEmpty(l2tTweet.Text))
+		{
+			OAuth2Authorizer auth = new()
 			{
 				CredentialStore = new OAuth2CredentialStore
 				{
-					AccessToken = postTweet.AccessToken,
-					RefreshToken = postTweet.RefreshToken
+					AccessToken = l2tTweet.AccessToken,
+					RefreshToken = l2tTweet.RefreshToken
 				}
 			};
 
-			TwitterContext? twitterCtx = new TwitterContext(auth);
-			Tweet? tweet = await twitterCtx.TweetAsync(postTweet.Text); // #TODO (Try/Catch)
-			postTweet.TweetId = tweet?.ID ?? "-1"; // "-1" (Auth Failed)
+			TwitterContext twitterCtx = new TwitterContext(auth);
+			Tweet tweet = new();
+			try
+			{
+				tweet = await twitterCtx.TweetAsync(l2tTweet.Text);
+			}
+			catch (Exception e)
+			{
+				l2tTweet.Error = e.Message;
+				Console.WriteLine($"\n\n***** e.StackTrace: {e.StackTrace}\n\n");
+			}
+
+			l2tTweet.TweetId = tweet.ID ?? "-1";
 		}
-		return Ok(postTweet);
+		return Ok(l2tTweet);
 	}
 }

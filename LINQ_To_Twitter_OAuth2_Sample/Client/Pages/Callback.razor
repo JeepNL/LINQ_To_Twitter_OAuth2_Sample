@@ -5,13 +5,13 @@
 @code {
     [Parameter]
     [SupplyParameterFromQuery]
-    public string? access_token { get; set; }
+    public string access_token { get; set; }
     [Parameter]
     [SupplyParameterFromQuery]
-    public string? refresh_token { get; set; }
+    public string refresh_token { get; set; }
     [Parameter]
     [SupplyParameterFromQuery]
-    public string? is_authenticated { get; set; }
+    public string is_authenticated { get; set; }
 
     protected override async Task OnInitializedAsync()
     {

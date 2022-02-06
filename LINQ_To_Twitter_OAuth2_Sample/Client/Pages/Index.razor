@@ -19,47 +19,66 @@ else
 
         <div class="row align-items-center">
             <div class="col-sm-4">
-                <InputText id="textarea" class="form-control" @bind-Value=l2tTweet.Text />
+                <InputTextArea id="textarea" class="form-control" @bind-Value=l2tTweet.Text />
             </div>
             <div class="col-sm">
                 <button type="submit" class="btn btn-primary">Tweet</button>
             </div>
         </div>
-
     </EditForm>
 
-    @if (!string.IsNullOrEmpty(l2tTweet.TweetId))
+    @if (l2tTweet?.TweetId != "0")
     {
-        <p>Tweet ID: @l2tTweet.TweetId</p>
+        <p>Tweet ID: @l2tTweet?.TweetId</p>
+    }
+
+    @if (!string.IsNullOrEmpty(l2tTweet?.Error))
+    {
+        <p>Tweet Error: @l2tTweet.Error</p>
     }
 }
 
 @code {
-    L2TBase l2tTokens = new();
-    L2TTweet l2tTweet = new();
+    private L2TBase l2tTokens = new();
+    private L2TTweet l2tTweet;
+    private string tweetText = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         l2tTokens = await localStorage.GetItemAsync<L2TBase>("l2t_tokens");
         if (l2tTokens is null)
             l2tTokens = new() { AccessToken = "", RefreshToken = "", IsAuthenticated = false };
+
         await localStorage.SetItemAsync<L2TBase>("l2t_tokens", l2tTokens);
+
+        l2tTweet = new()
+            {
+                AccessToken = l2tTokens.AccessToken,
+                RefreshToken = l2tTokens.RefreshToken,
+                Text = string.Empty,
+                TweetId = "0",
+                Error = string.Empty
+            };
     }
 
     private void BeginOAuth2()
     {
+        // 'true' as (optional, default = false) second parameter means the page will refresh, like a F5.
+        // "/OAuth2/Begin" is the route to the OAuth2 controller on the server which redirects the user to
+        // the Twitter Authorization page. After that the server controller redirects to
+        // "/Pages/Callback.razor" (/l2tcallback) on the client which will load the Blazor WASM site again.
         NavMan.NavigateTo("/OAuth2/Begin", true);
     }
 
     private async Task HandleValidSubmit()
     {
-        L2TTweet postTweet = new()
-            {
-                AccessToken = l2tTokens.AccessToken,
-                RefreshToken = l2tTokens.RefreshToken,
-                Text = l2tTweet.Text
-            };
-        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/PostTweet", postTweet);
-        l2tTweet = await responseMessage.Content.ReadFromJsonAsync<L2TTweet>() ?? new() { Text = "", TweetId = "-1" };
+        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/PostTweet", l2tTweet);
+        l2tTweet = await responseMessage.Content.ReadFromJsonAsync<L2TTweet>(); // l2tTweet is never null
+
+        if (l2tTweet.TweetId != "-1")
+        {
+            l2tTweet.Text = string.Empty;
+            l2tTweet.Error = string.Empty;
+        }
     }
 }
