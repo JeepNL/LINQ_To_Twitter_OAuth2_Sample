@@ -1,4 +1,5 @@
 ﻿@page "/"
+@implements IDisposable
 @inject Blazored.LocalStorage.ILocalStorageService localStorage
 @inject NavigationManager NavMan
 @inject HttpClient Http
@@ -7,7 +8,9 @@
 
 <h1>Hello, Twitter!</h1>
 
-@if (!l2tTokens.IsAuthenticated)
+@* #TODO 'Me' endpoint, Welcome, screenName! *@
+
+@if (l2tTokens.ExpireTokenTicks == 0)
 {
     <p><button class="btn btn-primary" @onclick=BeginOAuth2>Twitter OAuth2</button></p>
 }
@@ -16,38 +19,55 @@ else
     <EditForm Model="@l2tTweet" OnValidSubmit="@HandleValidSubmit">
         <DataAnnotationsValidator />
         <ValidationSummary />
-
+        <div class="col-6">
+            <small class="text-muted">Put that on your plate!</small>
+        </div>
         <div class="row align-items-center">
-            <div class="col-sm-4">
-                <InputTextArea id="textarea" class="form-control" @bind-Value=l2tTweet.Text />
+            <div class="col-6">
+                <InputTextAreaCount id="textarea" class="form-control" @bind-Value=l2tTweet.Text />
             </div>
-            <div class="col-sm">
-                <button type="submit" class="btn btn-primary">Tweet</button>
+            <div class="col-2">
+                <button type="submit" class="btn btn-sm btn-primary">Tweet</button>
+            </div>
+        </div>
+        <div class="row text-end">
+            <div class="col-6">
+                <small class="text-muted">Chars left: @(280 - l2tTweet.Text.Length)</small>
             </div>
         </div>
     </EditForm>
 
+    <div>
+        <small class="text-muted">Token expires in: @tokenExpiresInMin</small>
+    </div>
+
     @if (l2tTweet?.TweetId != "0")
     {
-        <p>Tweet ID: @l2tTweet?.TweetId</p>
+        <div>
+            <small class="text-success">Last Tweet ID: @l2tTweet?.TweetId</small>
+        </div>
     }
 
     @if (!string.IsNullOrEmpty(l2tTweet?.Error))
     {
-        <p>Tweet Error: @l2tTweet.Error</p>
+        <div>
+            <small class="text-danger" >Tweet Error: @l2tTweet.Error</small>
+        </div>
     }
 }
 
 @code {
+    private Timer _timer;
     private L2TBase l2tTokens = new();
     private L2TTweet l2tTweet;
     private string tweetText = string.Empty;
+    private string tokenExpiresInMin = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         l2tTokens = await localStorage.GetItemAsync<L2TBase>("l2t_tokens");
         if (l2tTokens is null)
-            l2tTokens = new() { AccessToken = "", RefreshToken = "", IsAuthenticated = false };
+            l2tTokens = new();
 
         await localStorage.SetItemAsync<L2TBase>("l2t_tokens", l2tTokens);
 
@@ -55,17 +75,21 @@ else
             {
                 AccessToken = l2tTokens.AccessToken,
                 RefreshToken = l2tTokens.RefreshToken,
+                ExpireTokenTicks = l2tTokens.ExpireTokenTicks,
                 Text = string.Empty,
                 TweetId = "0",
                 Error = string.Empty
             };
+
+        if (l2tTokens.ExpireTokenTicks > 0)
+            StartTimer();
     }
 
     private void BeginOAuth2()
     {
-        // 'true' as (optional, default = false) second parameter means the page will refresh, like a F5.
+        // 'true' as a second parameter (optional, default = false) means the page will refresh, like a F5.
         // "/OAuth2/Begin" is the route to the OAuth2 controller on the server which redirects the user to
-        // the Twitter Authorization page. After that the server controller redirects to
+        // the Twitter authorization page. After that the server controller redirects to
         // "/Pages/Callback.razor" (/l2tcallback) on the client which will load the Blazor WASM site again.
         NavMan.NavigateTo("/OAuth2/Begin", true);
     }
@@ -80,5 +104,37 @@ else
             l2tTweet.Text = string.Empty;
             l2tTweet.Error = string.Empty;
         }
+    }
+
+    // updates tokenExpiresInMin every minute
+    public void StartTimer()
+    {
+        _timer = new Timer(async _ =>
+        {
+            long ticksLeft = l2tTokens.ExpireTokenTicks - DateTime.UtcNow.Ticks;
+            TimeSpan expires = new TimeSpan(ticksLeft);
+            double expiresInMin = Math.Round(expires.TotalMinutes, 2);
+
+            switch (expiresInMin)
+            {
+                case <= 0:
+                    tokenExpiresInMin = "expired";
+                    // #TODO RefreshToken
+                    break;
+                case double x when x > 0 && x < 2:
+                    tokenExpiresInMin = "one minute"; // +/- :)
+                    break;
+                default:
+                    tokenExpiresInMin = expires.TotalMinutes.ToString(format: "N0") + " minutes";
+                    break;
+            }
+
+            await InvokeAsync(StateHasChanged);
+        }, null, 0, 1000 * 60); // 1000ms * 60 = 1 minute
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
     }
 }

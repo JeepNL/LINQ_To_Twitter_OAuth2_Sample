@@ -99,6 +99,11 @@ public class OAuth2Controller : ControllerBase
 	{
 		if (!string.IsNullOrEmpty(l2tTweet.Text))
 		{
+			//if (l2tTweet.ExpireToken > DateTime.UtcNow.Ticks)
+			//{
+
+			//}
+
 			OAuth2Authorizer auth = new()
 			{
 				CredentialStore = new OAuth2CredentialStore
