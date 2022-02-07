@@ -66,12 +66,13 @@ else
     protected override async Task OnInitializedAsync()
     {
         l2tTokens = await localStorage.GetItemAsync<L2TBase>("l2t_tokens");
+
         if (l2tTokens is null)
-            l2tTokens = new();
+            await localStorage.SetItemAsync<L2TBase>("l2t_tokens", l2tTokens = new());
+        else if (l2tTokens.ExpireTokenTicks > 0)
+            StartTimer();
 
-        await localStorage.SetItemAsync<L2TBase>("l2t_tokens", l2tTokens);
-
-        l2tTweet = new()
+        l2tTweet = new() // init tweet
             {
                 AccessToken = l2tTokens.AccessToken,
                 RefreshToken = l2tTokens.RefreshToken,
@@ -80,9 +81,6 @@ else
                 TweetId = "0",
                 Error = string.Empty
             };
-
-        if (l2tTokens.ExpireTokenTicks > 0)
-            StartTimer();
     }
 
     private void BeginOAuth2()
@@ -99,7 +97,7 @@ else
         HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/PostTweet", l2tTweet);
         l2tTweet = await responseMessage.Content.ReadFromJsonAsync<L2TTweet>(); // l2tTweet is never null
 
-        if (l2tTweet.TweetId != "-1")
+        if (l2tTweet.TweetId != "-1") // -1 = catch error - #TODO enum
         {
             l2tTweet.Text = string.Empty;
             l2tTweet.Error = string.Empty;

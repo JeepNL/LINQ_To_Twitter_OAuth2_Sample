@@ -2,6 +2,8 @@
 
 [Joe Mayo](https://github.com/JoeMayo)'s Linq To Twitter [OAuth2 blog post](https://joemayo.medium.com/using-oauth-2-0-with-linq-to-twitter-eac6d9035084)
 
+![Screenshot](img/lt2oauth2.png)
+
 For this sample to work you'll need to add the file `/Server/twitterkeys.ini` which is called in `/Server/Program.cs` *(line 5-13)* and sets the `TwitterClientID` & `TwitterClientSecret` enviroment variables.
 
     TwitterClientID="Your Twitter Client ID"

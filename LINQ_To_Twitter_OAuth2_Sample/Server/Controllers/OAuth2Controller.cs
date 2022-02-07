@@ -37,7 +37,7 @@ public class OAuth2Controller : ControllerBase
 					"users.read",
 					"follows.read",
 					//"follows.write",
-					"offline.access",
+					"offline.access", // needed for the 'Refresh Token' - Important
 					//"space.read",
 					"mute.read",
 					//"mute.write",
