@@ -1,4 +1,4 @@
-### Kestrel Hosted Blazor WASM / LINQ To Twitter OAuth2 Sample ###
+### Kestrel Hosted Blazor WASM / [LINQ To Twitter](https://github.com/JoeMayo/LinqToTwitter) OAuth2 Sample ###
 
 [Joe Mayo](https://github.com/JoeMayo)'s Linq To Twitter [OAuth2 blog post](https://joemayo.medium.com/using-oauth-2-0-with-linq-to-twitter-eac6d9035084)
 
