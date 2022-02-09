@@ -14,8 +14,16 @@
 {
     <p><button class="btn btn-primary" @onclick=BeginOAuth2>Twitter OAuth2</button></p>
 }
-else
+else if (l2tUser is not null)
 {
+    <div>
+        <p>
+            ID: @l2tUser.Id
+            <br />Handle: @l2tUser.Handle
+            <br />Name: @l2tUser.Name
+        </p>
+    </div>
+
     <EditForm Model="@l2tTweet" OnValidSubmit="@HandleValidSubmit">
         <DataAnnotationsValidator />
         <ValidationSummary />
@@ -30,16 +38,18 @@ else
                 <button type="submit" class="btn btn-sm btn-primary">Tweet</button>
             </div>
         </div>
-        <div class="row text-end">
-            <div class="col-6">
-                <small class="text-muted">Chars left: @(280 - l2tTweet.Text.Length)</small>
+        <div class="row">
+            <div class="col-5">
+                <small class="text-muted">Token expires in: @tokenExpiresInMin</small>
             </div>
+            <div class="col-1 text-end">
+                <small class="text-muted">@(280 - l2tTweet.Text.Length)</small>
+            </div>
+
         </div>
     </EditForm>
 
-    <div>
-        <small class="text-muted">Token expires in: @tokenExpiresInMin</small>
-    </div>
+    <br />
 
     @if (l2tTweet?.TweetId != "0")
     {
@@ -51,17 +61,34 @@ else
     @if (!string.IsNullOrEmpty(l2tTweet?.Error))
     {
         <div>
-            <small class="text-danger" >Tweet Error: @l2tTweet.Error</small>
+            <small class="text-danger">Tweet Error: @l2tTweet.Error</small>
         </div>
     }
+
+    <br />
+
+    <div>
+        <p>
+            <i>Just for testing:</i><br />
+            <button @onclick="RefreshToken" class="btn btn-sm btn-primary">Refresh Token</button>
+            &nbsp;<button @onclick="RevokeToken" class="btn btn-sm btn-primary">Revoke Token</button>
+            <br />
+            @if (!string.IsNullOrEmpty(status))
+            {
+                <p>Status: @status</p>
+            }
+        </p>
+    </div>
 }
 
 @code {
     private Timer _timer;
     private L2TBase l2tTokens = new();
+    private L2TUser l2tUser = new();
     private L2TTweet l2tTweet;
     private string tweetText = string.Empty;
     private string tokenExpiresInMin = string.Empty;
+    private string status = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -70,7 +97,10 @@ else
         if (l2tTokens is null)
             await localStorage.SetItemAsync<L2TBase>("l2t_tokens", l2tTokens = new());
         else if (l2tTokens.ExpireTokenTicks > 0)
+        {
+            await UserInfo();
             StartTimer();
+        }
 
         l2tTweet = new() // init tweet
             {
@@ -92,18 +122,6 @@ else
         NavMan.NavigateTo("/OAuth2/Begin", true);
     }
 
-    private async Task HandleValidSubmit()
-    {
-        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/PostTweet", l2tTweet);
-        l2tTweet = await responseMessage.Content.ReadFromJsonAsync<L2TTweet>(); // l2tTweet is never null
-
-        if (l2tTweet.TweetId != "-1") // -1 = catch error - #TODO enum
-        {
-            l2tTweet.Text = string.Empty;
-            l2tTweet.Error = string.Empty;
-        }
-    }
-
     // updates tokenExpiresInMin every minute
     public void StartTimer()
     {
@@ -116,19 +134,49 @@ else
             switch (expiresInMin)
             {
                 case <= 0:
-                    tokenExpiresInMin = "expired";
+                    tokenExpiresInMin = "expired.";
                     // #TODO RefreshToken
                     break;
                 case double x when x > 0 && x < 2:
-                    tokenExpiresInMin = "one minute"; // +/- :)
+                    tokenExpiresInMin = "one minute."; // +/- :)
                     break;
                 default:
-                    tokenExpiresInMin = expires.TotalMinutes.ToString(format: "N0") + " minutes";
+                    tokenExpiresInMin = expires.TotalMinutes.ToString(format: "N0") + " minutes.";
                     break;
             }
 
             await InvokeAsync(StateHasChanged);
         }, null, 0, 1000 * 60); // 1000ms * 60 = 1 minute
+    }
+
+    private async Task UserInfo()
+    {
+        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/UserInfo", l2tTokens);
+        l2tUser = await responseMessage.Content.ReadFromJsonAsync<L2TUser>();
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/PostTweet", l2tTweet);
+        l2tTweet = await responseMessage.Content.ReadFromJsonAsync<L2TTweet>(); // l2tTweet is never null
+
+        if (l2tTweet.TweetId != "-1") // -1 = catch error - #TODO enum
+        {
+            l2tTweet.Text = string.Empty;
+            l2tTweet.Error = string.Empty;
+        }
+    }
+
+    public async Task RefreshToken()
+    {
+        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/RefreshToken", l2tTokens);
+        status = responseMessage.Content.ToString();
+    }
+
+    public async Task RevokeToken()
+    {
+        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/RevokeToken", l2tTokens);
+        status = responseMessage.Content.ToString();
     }
 
     public void Dispose()
