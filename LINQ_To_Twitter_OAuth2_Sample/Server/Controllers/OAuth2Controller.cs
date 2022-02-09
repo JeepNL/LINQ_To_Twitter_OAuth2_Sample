@@ -58,7 +58,6 @@ public class OAuth2Controller : ControllerBase
 	{
 		MvcOAuth2Authorizer auth = new()
 		{
-			//CredentialStore = new OAuth2SessionCredentialStore(HttpContext.Session)
 			CredentialStore = new OAuth2SessionCredentialStore(HttpContext.Session)
 		};
 
@@ -93,17 +92,24 @@ public class OAuth2Controller : ControllerBase
 
 		MvcOAuth2Authorizer auth = new()
 		{
-			CredentialStore = new OAuth2CredentialStore
-			//CredentialStore = new OAuth2SessionCredentialStore(HttpContext.Session)
+			//CredentialStore = new OAuth2CredentialStore
+			CredentialStore = new OAuth2SessionCredentialStore(HttpContext.Session)
 			{
 				ClientID = _configuration["TwitterClientID"],
 				RefreshToken = lt2Tokens.RefreshToken
 			}
 		};
 
+		Console.WriteLine("\n***** Session Keys:");
+		foreach (var key in HttpContext.Session.Keys)
+		{
+			Console.WriteLine($"***** key: {key}: {HttpContext.Session.GetString(key)}");
+		}
+		Console.WriteLine("\n");
+
 		lt2Tokens.AccessToken = await auth.RefreshTokenAsync();
 
-		Console.WriteLine($"***** OUTPUT - lt2Base.AccessToken (?): {lt2Tokens.AccessToken}\n\n");
+		Console.WriteLine($"\n***** OUTPUT - lt2Base.AccessToken (?): {lt2Tokens.AccessToken}\n\n");
 		return lt2Tokens;
 	}
 
