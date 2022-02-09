@@ -14,7 +14,7 @@
 {
     <p><button class="btn btn-primary" @onclick=BeginOAuth2>Twitter OAuth2</button></p>
 }
-else if (l2tUser is not null)
+else if (!string.IsNullOrEmpty(l2tUser.Id))
 {
     <div>
         <p>
@@ -72,11 +72,6 @@ else if (l2tUser is not null)
             <i>Just for testing:</i><br />
             <button @onclick="RefreshToken" class="btn btn-sm btn-primary">Refresh Token</button>
             &nbsp;<button @onclick="RevokeToken" class="btn btn-sm btn-primary">Revoke Token</button>
-            <br />
-            @if (!string.IsNullOrEmpty(status))
-            {
-                <p>Status: @status</p>
-            }
         </p>
     </div>
 }
@@ -135,11 +130,11 @@ else if (l2tUser is not null)
             {
                 case <= 0:
                     tokenExpiresInMin = "expired.";
-                    // #TODO RefreshToken
-                    break;
+                // #TODO RefreshToken
+                break;
                 case double x when x > 0 && x < 2:
                     tokenExpiresInMin = "one minute."; // +/- :)
-                    break;
+                break;
                 default:
                     tokenExpiresInMin = expires.TotalMinutes.ToString(format: "N0") + " minutes.";
                     break;
@@ -170,13 +165,24 @@ else if (l2tUser is not null)
     public async Task RefreshToken()
     {
         HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/RefreshToken", l2tTokens);
-        status = responseMessage.Content.ToString();
+        L2TRefreshResponse refreshResponse = await responseMessage.Content.ReadFromJsonAsync<L2TRefreshResponse>();
+
+        l2tTokens.AccessToken = refreshResponse.access_token;
+        l2tTokens.RefreshToken = refreshResponse.refresh_token;
+        l2tTokens.ExpireTokenTicks = DateTime.UtcNow.AddSeconds(refreshResponse.expires_in).Ticks;
+        await localStorage.SetItemAsync<L2TBase>("l2t_tokens", l2tTokens);
     }
 
     public async Task RevokeToken()
     {
         HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/RevokeToken", l2tTokens);
         status = responseMessage.Content.ToString();
+
+        l2tUser.Id = string.Empty;
+        l2tTokens.AccessToken = string.Empty;
+        l2tTokens.RefreshToken = string.Empty;
+        l2tTokens.ExpireTokenTicks = 0;
+        await localStorage.SetItemAsync<L2TBase>("l2t_tokens", l2tTokens);
     }
 
     public void Dispose()

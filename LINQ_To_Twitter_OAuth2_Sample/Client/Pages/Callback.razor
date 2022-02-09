@@ -15,7 +15,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        L2TBase L2TTokens = new(access_token, refresh_token, DateTime.UtcNow.AddMinutes(115).Ticks); // 2 hours (Twitter default) - 5 minutes.
+        L2TBase L2TTokens = new(access_token, refresh_token, DateTime.UtcNow.AddMinutes(120).Ticks); // 2 hours (Twitter default)
         await localStorage.SetItemAsync<L2TBase>("l2t_tokens", L2TTokens);
         NavMan.NavigateTo("/");
     }
