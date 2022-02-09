@@ -56,8 +56,9 @@ public class OAuth2Controller : ControllerBase
 
 	public async Task<IActionResult> Complete()
 	{
-		OAuth2Authorizer auth = new()
+		MvcOAuth2Authorizer auth = new()
 		{
+			//CredentialStore = new OAuth2SessionCredentialStore(HttpContext.Session)
 			CredentialStore = new OAuth2SessionCredentialStore(HttpContext.Session)
 		};
 
@@ -90,9 +91,10 @@ public class OAuth2Controller : ControllerBase
 	{
 		Console.WriteLine($"\n\n***** INPUT - lt2Base.AccessToken: {lt2Tokens.AccessToken}");
 
-		OAuth2Authorizer auth = new()
+		MvcOAuth2Authorizer auth = new()
 		{
 			CredentialStore = new OAuth2CredentialStore
+			//CredentialStore = new OAuth2SessionCredentialStore(HttpContext.Session)
 			{
 				ClientID = _configuration["TwitterClientID"],
 				RefreshToken = lt2Tokens.RefreshToken
@@ -108,9 +110,10 @@ public class OAuth2Controller : ControllerBase
 	[HttpPost]
 	public async Task<ActionResult<string>> RevokeToken(L2TBase l2tTokens)
 	{
-		OAuth2Authorizer auth = new()
+		MvcOAuth2Authorizer auth = new()
 		{
 			CredentialStore = new OAuth2CredentialStore
+			//CredentialStore = new OAuth2SessionCredentialStore(HttpContext.Session)
 			{
 				ClientID = _configuration["TwitterClientID"],
 				AccessToken = l2tTokens.AccessToken
@@ -125,7 +128,7 @@ public class OAuth2Controller : ControllerBase
 	[HttpPost]
 	public async Task<ActionResult<L2TUser>> UserInfo(L2TBase l2tTokens)
 	{
-		OAuth2Authorizer auth = new()
+		MvcOAuth2Authorizer auth = new()
 		{
 			CredentialStore = new OAuth2CredentialStore
 			{
@@ -157,7 +160,7 @@ public class OAuth2Controller : ControllerBase
 	{
 		if (!string.IsNullOrEmpty(l2tTweet.Text))
 		{
-			OAuth2Authorizer auth = new()
+			MvcOAuth2Authorizer auth = new()
 			{
 				CredentialStore = new OAuth2CredentialStore
 				{
