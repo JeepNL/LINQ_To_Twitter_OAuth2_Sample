@@ -3,20 +3,21 @@
 @inject NavigationManager NavMan
 
 @code {
-    [Parameter]
-    [SupplyParameterFromQuery]
-    public string access_token { get; set; }
-    [Parameter]
-    [SupplyParameterFromQuery]
-    public string refresh_token { get; set; }
-    [Parameter]
-    [SupplyParameterFromQuery]
-    public string is_authenticated { get; set; }
+    [Parameter][SupplyParameterFromQuery] public string access_token { get; set; }
+    [Parameter][SupplyParameterFromQuery] public string refresh_token { get; set; }
+    [Parameter][SupplyParameterFromQuery] public long expire_token_ticks { get; set; }
+    [Parameter][SupplyParameterFromQuery] public string access_denied { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        L2TBase L2TTokens = new(access_token, refresh_token, DateTime.UtcNow.AddMinutes(120).Ticks); // 2 hours (Twitter default)
-        await localStorage.SetItemAsync<L2TBase>("l2t_tokens", L2TTokens);
+        if (access_denied != "true")
+        {
+            L2TBase l2tBase = new(access_token,
+                                  refresh_token,
+                                  expire_token_ticks);
+
+            await localStorage.SetItemAsync<L2TBase>("l2t_base", l2tBase);
+        }
         NavMan.NavigateTo("/");
     }
 }

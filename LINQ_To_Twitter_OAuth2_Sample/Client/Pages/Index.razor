@@ -8,9 +8,7 @@
 
 <h1>Hello, Twitter!</h1>
 
-@* #TODO 'Me' endpoint, Welcome, screenName! *@
-
-@if (l2tTokens.ExpireTokenTicks == 0)
+@if (l2tBase.ExpireTokenTicks == 0)
 {
     <p><button class="btn btn-primary" @onclick=BeginOAuth2>Twitter OAuth2</button></p>
 }
@@ -76,9 +74,16 @@ else if (!string.IsNullOrEmpty(l2tUser.Id))
     </div>
 }
 
+@if (!string.IsNullOrEmpty(status))
+{
+    <p>
+        Status: '@status'
+    </p>
+}
+
 @code {
     private Timer _timer;
-    private L2TBase l2tTokens = new();
+    private L2TBase l2tBase = new();
     private L2TUser l2tUser = new();
     private L2TTweet l2tTweet;
     private string tweetText = string.Empty;
@@ -87,25 +92,22 @@ else if (!string.IsNullOrEmpty(l2tUser.Id))
 
     protected override async Task OnInitializedAsync()
     {
-        l2tTokens = await localStorage.GetItemAsync<L2TBase>("l2t_tokens");
-
-        if (l2tTokens is null)
-            await localStorage.SetItemAsync<L2TBase>("l2t_tokens", l2tTokens = new());
-        else if (l2tTokens.ExpireTokenTicks > 0)
+        l2tBase = await localStorage.GetItemAsync<L2TBase>("l2t_base");
+        if (l2tBase is null)
+            await localStorage.SetItemAsync<L2TBase>("l2t_base", l2tBase = new());
+        else if (l2tBase.ExpireTokenTicks > 0)
         {
+            l2tTweet = new() // init tweet
+                {
+                    AccessToken = l2tBase.AccessToken,
+                    RefreshToken = l2tBase.RefreshToken,
+                    Text = string.Empty,
+                    TweetId = "0",
+                    Error = string.Empty
+                };
             await UserInfo();
             StartTimer();
         }
-
-        l2tTweet = new() // init tweet
-            {
-                AccessToken = l2tTokens.AccessToken,
-                RefreshToken = l2tTokens.RefreshToken,
-                ExpireTokenTicks = l2tTokens.ExpireTokenTicks,
-                Text = string.Empty,
-                TweetId = "0",
-                Error = string.Empty
-            };
     }
 
     private void BeginOAuth2()
@@ -122,7 +124,7 @@ else if (!string.IsNullOrEmpty(l2tUser.Id))
     {
         _timer = new Timer(async _ =>
         {
-            long ticksLeft = l2tTokens.ExpireTokenTicks - DateTime.UtcNow.Ticks;
+            long ticksLeft = l2tBase.ExpireTokenTicks - DateTime.UtcNow.Ticks;
             TimeSpan expires = new TimeSpan(ticksLeft);
             double expiresInMin = Math.Round(expires.TotalMinutes, 2);
 
@@ -130,11 +132,11 @@ else if (!string.IsNullOrEmpty(l2tUser.Id))
             {
                 case <= 0:
                     tokenExpiresInMin = "expired.";
-                // #TODO RefreshToken
-                break;
+                    // #TODO RefreshToken
+                    break;
                 case double x when x > 0 && x < 2:
                     tokenExpiresInMin = "one minute."; // +/- :)
-                break;
+                    break;
                 default:
                     tokenExpiresInMin = expires.TotalMinutes.ToString(format: "N0") + " minutes.";
                     break;
@@ -146,7 +148,7 @@ else if (!string.IsNullOrEmpty(l2tUser.Id))
 
     private async Task UserInfo()
     {
-        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/UserInfo", l2tTokens);
+        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/UserInfo", l2tBase);
         l2tUser = await responseMessage.Content.ReadFromJsonAsync<L2TUser>();
     }
 
@@ -164,29 +166,51 @@ else if (!string.IsNullOrEmpty(l2tUser.Id))
 
     public async Task RefreshToken()
     {
-        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/RefreshToken", l2tTokens);
+        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/RefreshToken", l2tBase);
         L2TRefreshResponse refreshResponse = await responseMessage.Content.ReadFromJsonAsync<L2TRefreshResponse>();
 
-        l2tTokens.AccessToken = refreshResponse.access_token;
-        l2tTokens.RefreshToken = refreshResponse.refresh_token;
-        l2tTokens.ExpireTokenTicks = DateTime.UtcNow.AddSeconds(refreshResponse.expires_in).Ticks;
-        await localStorage.SetItemAsync<L2TBase>("l2t_tokens", l2tTokens);
+        // TEMP
+        // OR localstorage ... hmm ...
+        l2tBase.AccessToken = refreshResponse.access_token;
+        l2tBase.RefreshToken = refreshResponse.refresh_token;
+        l2tBase.ExpireTokenTicks = DateTime.UtcNow.AddSeconds(refreshResponse.expires_in).Ticks;
+
+        l2tTweet.AccessToken = l2tBase.AccessToken;
+        l2tTweet.RefreshToken = l2tBase.RefreshToken;
+
+        l2tUser.AccessToken = l2tBase.AccessToken;
+        l2tUser.RefreshToken = l2tBase.RefreshToken;
+        // TEMP
+
+        await localStorage.SetItemAsync<L2TBase>("l2t_base", l2tBase);
     }
 
     public async Task RevokeToken()
     {
-        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/RevokeToken", l2tTokens);
+        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/RevokeToken", l2tBase);
+
         status = responseMessage.Content.ToString();
 
+        // TEMP
         l2tUser.Id = string.Empty;
-        l2tTokens.AccessToken = string.Empty;
-        l2tTokens.RefreshToken = string.Empty;
-        l2tTokens.ExpireTokenTicks = 0;
-        await localStorage.SetItemAsync<L2TBase>("l2t_tokens", l2tTokens);
+        l2tBase.AccessToken = string.Empty;
+        l2tBase.RefreshToken = string.Empty;
+        l2tBase.ExpireTokenTicks = 0;
+
+        l2tTweet.AccessToken = string.Empty;
+        l2tTweet.RefreshToken = string.Empty;
+
+        l2tUser.AccessToken = string.Empty;
+        l2tUser.RefreshToken = string.Empty;
+        // TEMP
+
+        await localStorage.SetItemAsync<L2TBase>("l2t_base", l2tBase);
     }
 
     public void Dispose()
     {
         _timer?.Dispose();
     }
+
+    //Console.WriteLine($": {}");
 }

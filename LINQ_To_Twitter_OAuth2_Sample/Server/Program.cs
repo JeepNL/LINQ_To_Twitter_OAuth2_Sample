@@ -15,9 +15,12 @@ builder.Host.ConfigureAppConfiguration((hostingContext, config) =>
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
-	options.Cookie.HttpOnly = true;
+	options.Cookie.HttpOnly = false;
 	options.Cookie.IsEssential = true;
 	options.IdleTimeout = TimeSpan.FromMinutes(30);
+	options.Cookie.Name = "Session";
+	//options.Cookie.Expiration = TimeSpan.FromDays(7);
+
 });
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
@@ -43,6 +46,8 @@ app.UseStaticFiles();
 
 app.UseRouting();
 app.UseSession();
+
+//app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapRazorPages();
