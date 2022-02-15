@@ -18,9 +18,7 @@ builder.Services.AddSession(options =>
 	options.Cookie.HttpOnly = false;
 	options.Cookie.IsEssential = true;
 	options.IdleTimeout = TimeSpan.FromMinutes(30);
-	options.Cookie.Name = "Session";
-	//options.Cookie.Expiration = TimeSpan.FromDays(7);
-
+	options.Cookie.Name = "L2T.Session";
 });
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();

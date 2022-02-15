@@ -18,26 +18,49 @@
     </main>
 </div>
 
-@*@code {
-    private L2TBase l2tBase;
+@code {
+    private L2TBase l2tBase = new();
 
     protected override async Task OnInitializedAsync()
     {
         l2tBase = await localStorage.GetItemAsync<L2TBase>("l2t_base");
 
-        if (l2tBase is not null)
+        if (l2tBase is not null && (!string.IsNullOrEmpty(l2tBase.AccessToken) && !string.IsNullOrEmpty(l2tBase.RefreshToken)))
         {
-            var status = await Http.PostAsJsonAsync("OAuth2/InitSession", l2tBase);
-            Console.WriteLine($"***** status: {status}");
+            await Http.PostAsJsonAsync("OAuth2/InitSession", l2tBase);
 
-            //HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/RefreshToken", l2tTokens);
-            //L2TRefreshResponse refreshResponse = await responseMessage.Content.ReadFromJsonAsync<L2TRefreshResponse>();
-            //l2tTokens.AccessToken = refreshResponse.access_token;
-            //l2tTokens.RefreshToken = refreshResponse.refresh_token;
-            //l2tTokens.ExpireTokenTicks = DateTime.UtcNow.AddSeconds(refreshResponse.expires_in).Ticks;
-            //await localStorage.SetItemAsync<L2TBase>("l2t_tokens", l2tTokens);
+            //HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/UserInfo", l2tBase);
+            //L2TBase userInfo = await responseMessage.Content.ReadFromJsonAsync<L2TBase>();
+            //l2tBase.UserId = userInfo.UserId;
+            //l2tBase.ScreenName = userInfo.ScreenName;
+            //l2tBase.Name = userInfo.Name;
+            //await localStorage.SetItemAsync<L2TBase>("l2t_base", l2tBase);
         }
-        else
+        else if (l2tBase is null)
             await localStorage.SetItemAsync<L2TBase>("l2t_base", l2tBase = new());
     }
-}*@
+}
+
+@*@code {
+    private L2TBase l2tBase;
+
+    protected override async Task OnInitializedAsync()
+    {
+    l2tBase = await localStorage.GetItemAsync<L2TBase>("l2t_base");
+
+    if (l2tBase is not null)
+    {
+    var status = await Http.PostAsJsonAsync("OAuth2/InitSession", l2tBase);
+    Console.WriteLine($"***** status: {status}");
+
+    //HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/RefreshToken", l2tTokens);
+    //L2TRefreshResponse refreshResponse = await responseMessage.Content.ReadFromJsonAsync<L2TRefreshResponse>();
+    //l2tTokens.AccessToken = refreshResponse.access_token;
+    //l2tTokens.RefreshToken = refreshResponse.refresh_token;
+    //l2tTokens.ExpireTokenTicks = DateTime.UtcNow.AddSeconds(refreshResponse.expires_in).Ticks;
+    //await localStorage.SetItemAsync<L2TBase>("l2t_tokens", l2tTokens);
+    }
+    else
+    await localStorage.SetItemAsync<L2TBase>("l2t_base", l2tBase = new());
+    }
+    }*@
