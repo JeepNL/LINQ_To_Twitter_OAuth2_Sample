@@ -1,6 +1,7 @@
 ﻿using LINQ_To_Twitter_OAuth2_Sample.Shared.Models;
 using LinqToTwitter;
 using LinqToTwitter.OAuth;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
@@ -23,8 +24,7 @@ public class OAuth2Controller : ControllerBase
 	{
 		string twitterCallbackUrl = Request.GetDisplayUrl().Replace("Begin", "Complete");
 
-		//OAuth2Authorizer auth = new()
-		MvcOAuth2Authorizer auth = new()
+		MvcOAuth2Authorizer auth = new MvcOAuth2Authorizer()
 		{
 			CredentialStore = new OAuth2SessionCredentialStore(HttpContext.Session)
 			{
@@ -57,11 +57,6 @@ public class OAuth2Controller : ControllerBase
 
 	public async Task<IActionResult> Complete()
 	{
-		OAuth2Authorizer auth = new()
-		{
-			CredentialStore = new OAuth2SessionCredentialStore(HttpContext.Session)
-		};
-
 		Request.Query.TryGetValue("error", out StringValues error);
 		Request.Query.TryGetValue("code", out StringValues code);
 		Request.Query.TryGetValue("state", out StringValues state);
@@ -69,9 +64,10 @@ public class OAuth2Controller : ControllerBase
 		if (error == "access_denied") // access cancelled at Twitter
 			return Redirect("/l2tcallback?access_denied=true");
 
-		await auth.CompleteAuthorizeAsync(code, state);
-
-		IOAuth2CredentialStore credentials = auth.CredentialStore as IOAuth2CredentialStore;
+		OAuth2Authorizer auth = new()
+		{
+			CredentialStore = new OAuth2SessionCredentialStore(HttpContext.Session)
+		};
 
 		//Console.WriteLine("\n\n***** Complete:");
 		//foreach (var key in HttpContext.Session.Keys)
@@ -80,9 +76,22 @@ public class OAuth2Controller : ControllerBase
 		//}
 		//Console.WriteLine("\n");
 
+		await auth.CompleteAuthorizeAsync(code, state);
+
+		IOAuth2CredentialStore credentials = auth.CredentialStore as IOAuth2CredentialStore;
+
+		// Get 'Me' User(Id)
+		TwitterContext twitterCtx = new TwitterContext(auth);
+		TwitterUserQuery response = await (
+			from usr in twitterCtx.TwitterUser
+			where usr.Type == UserType.Me
+			select usr
+		).SingleOrDefaultAsync();
+		TwitterUser user = response?.Users?.SingleOrDefault();
+
 		string url = $"/l2tcallback?access_token={credentials.AccessToken}&" +
 					 $"refresh_token={credentials.RefreshToken}&" +
-					 $"expire_token_ticks={DateTime.UtcNow.AddMinutes(120).Ticks}&";
+					 $"expire_token_ticks={DateTime.UtcNow.AddMinutes(120).Ticks}&user_id={user.ID}";
 
 		return Redirect(url);
 	}
@@ -116,11 +125,10 @@ public class OAuth2Controller : ControllerBase
 			}
 		};
 
-		string result = await auth.RevokeTokenAsync();
+		string result = await auth.RevokeTokenAsync(); // revokes app authorization
 
 		// delete session cookie
 		HttpContext.Session.Clear();
-		//await HttpContext.SignOutAsync();
 
 		return result;
 	}
@@ -145,9 +153,8 @@ public class OAuth2Controller : ControllerBase
 		).SingleOrDefaultAsync();
 
 		TwitterUser user = response?.Users?.SingleOrDefault();
+
 		l2tBase.UserId = user.ID;
-		l2tBase.Name = user.Name;
-		l2tBase.ScreenName = user.Username;
 
 		return Ok(l2tBase);
 	}
@@ -168,17 +175,10 @@ public class OAuth2Controller : ControllerBase
 
 			TwitterContext twitterCtx = new TwitterContext(auth); // #TODO Try/Catch
 			Tweet tweet = new();
-			//{
-			//	ConversationID = l2tTweet.ConversationId,
-			//	InReplyToUserID = l2tTweet.UserId
-			//};
+
 			try
 			{
-				if (string.IsNullOrEmpty(l2tTweet.ConversationId))
-					tweet = await twitterCtx.TweetAsync(l2tTweet.Text);
-				else
-					tweet = await twitterCtx.ReplyAsync(l2tTweet.Text, l2tTweet.ConversationId);
-
+				tweet = await twitterCtx.TweetAsync(l2tTweet.Text);
 			}
 			catch (Exception e)
 			{
@@ -189,50 +189,5 @@ public class OAuth2Controller : ControllerBase
 			l2tTweet.TweetId = tweet.ID ?? "-1";
 		}
 		return Ok(l2tTweet);
-	}
-
-	// #TODO Temporary. Creates Session Cookie after UseSession(), Called in MainLayout.Razor, so when the app starts
-	[HttpPost]
-	//public async Task<string> InitSession(L2TBase l2tBase)
-	public void InitSession(L2TBase l2tBase)
-	{
-		//MvcOAuth2Authorizer auth = new()
-		OAuth2Authorizer auth = new()
-		{
-			CredentialStore = new OAuth2SessionCredentialStore(HttpContext.Session)
-			//CredentialStore = new OAuth2CredentialStore()
-			{
-				ClientID = _configuration["TwitterClientID"],
-				ClientSecret = _configuration["TwitterClientSecret"],
-				RefreshToken = l2tBase.RefreshToken,
-				AccessToken = l2tBase.AccessToken,
-			}
-		};
-
-		//IOAuth2CredentialStore credentials = auth.CredentialStore as IOAuth2CredentialStore;
-
-		Console.WriteLine("\n\n***** InitSession:");
-		foreach (var key in HttpContext.Session.Keys)
-		{
-			Console.WriteLine($"***** key: {key}: {HttpContext.Session.GetString(key)}");
-		}
-		Console.WriteLine("\n");
-
-		//      if (new OAuth2SessionCredentialStore(HttpContext.Session).HasAllCredentials())
-		//      {
-		//          Console.WriteLine("\n\nHAS ALL CREDENTIALS\n\n");
-		//      }
-
-		if (auth.CredentialStore.HasAllCredentials())
-		{
-			Console.WriteLine("\n\nHAS ALL CREDENTIALS\n\n");
-		}
-
-		//await Task.Delay(10);
-
-		// Arbitrary key/value, just creates a new session cookie, which is needed when a user returns after a browser close.
-		// HttpContext.Session.SetString("Init", DateTime.UtcNow.Ticks.ToString());
-
-		//return auth.HtmlResponseString;
 	}
 }
