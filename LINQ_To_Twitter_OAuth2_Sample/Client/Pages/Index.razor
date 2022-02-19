@@ -6,24 +6,17 @@
 
 <PageTitle>Index</PageTitle>
 
-<h1>Hello, Twitter!</h1>
+<h1>Blazor WASM L2T OAuth 2.0</h1>
 
-@if (l2tBase.ExpireTokenTicks == 0)
+@if (l2tBase.UserId == 0)
 {
     <div class="mt-2">
-        <button class="btn btn-primary" @onclick=BeginOAuth2>Twitter OAuth2</button>
+        <button class="btn btn-primary" @onclick=TwitterOAuth2>Twitter OAuth2</button>
     </div>
 }
-else if (!string.IsNullOrEmpty(l2tBase.UserId))
+else
 {
-    <div class="mt-2">
-        User ID: @l2tBase.UserId
-        @*            <br />Screen Name: <a href="https://twitter.com/@l2tBase.ScreenName" target="_blank">@@@l2tBase.ScreenName</a>
-            <br />Name: @l2tBase.Name
-        *@
-    </div>
-
-    <EditForm Model="@l2tTweet" OnValidSubmit="@SendTweet">
+    <EditForm Model="@l2tTweet" OnValidSubmit="@PostTweet">
         <DataAnnotationsValidator />
         <ValidationSummary />
         <div class="col-6 mt-2">
@@ -47,52 +40,79 @@ else if (!string.IsNullOrEmpty(l2tBase.UserId))
         </div>
     </EditForm>
 
-    @if (l2tTweet?.TweetId != "0")
-    {
-        <div class="mt-2">
-            <small class="text-success">Last Tweet ID: @l2tTweet?.TweetId</small>
-        </div>
-    }
-
-    @if (!string.IsNullOrEmpty(l2tTweet?.Error))
-    {
-        <div class="mt-2">
-            <small class="text-danger">Tweet Error: @l2tTweet.Error</small>
-        </div>
-    }
+    <div class="mt-2">
+        @if (l2tTweet.TweetId > 0) // success
+        {
+            <small class="text-success">Last Tweet ID: @l2tTweet.TweetId</small>
+        }
+        else if (l2tTweet.TweetId == -1) // error
+        {
+            <small class="text-danger">Tweet Error: @l2tTweet.ErrorMessage</small>
+        }
+    </div>
 
     <div class="mt-2">
         <button @onclick="RevokeToken" class="btn btn-sm btn-primary">Revoke Token</button>
+    </div>
+
+    <div class="mt-2">
+        <h2>Timeline</h2>
+        @foreach (var item in l2tTimeline)
+        {
+            <div class="mt-1">
+                @item.Text
+            </div>
+        }
     </div>
 }
 
 @code {
     private Timer _timer;
     private L2TBase l2tBase = new();
-    private L2TTweet l2tTweet;
+    private L2TTweet l2tTweet = new();
+    private List<L2TTimeline> l2tTimeline = new();
     private string tweetText = string.Empty;
     private string tokenExpiresInMin = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         l2tBase = await localStorage.GetItemAsync<L2TBase>("l2t_base");
+
         if (l2tBase is not null && !string.IsNullOrEmpty(l2tBase.AccessToken) && !string.IsNullOrEmpty(l2tBase.RefreshToken))
         {
-            l2tTweet = new() // init tweet
-                {
-                    AccessToken = l2tBase.AccessToken,
-                    RefreshToken = l2tBase.RefreshToken,
-                    Text = string.Empty,
-                    TweetId = "0",
-                    Error = string.Empty
-                };
             StartTimer();
+            await UserTimeline();
         }
-        else if (l2tBase is null)
+        else
             await localStorage.SetItemAsync<L2TBase>("l2t_base", l2tBase = new());
     }
 
-    private void BeginOAuth2()
+    private async Task PostTweet()
+    {
+        l2tTweet.AccessToken = l2tBase.AccessToken;
+        l2tTweet.RefreshToken = l2tBase.RefreshToken;
+
+        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/PostTweet", l2tTweet);
+        l2tTweet = await responseMessage.Content.ReadFromJsonAsync<L2TTweet>(); // l2tTweet is never null
+
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            l2tTweet.Text = string.Empty;
+            l2tTweet.ErrorMessage = string.Empty;
+        }
+    }
+
+    private async Task UserTimeline()
+    {
+        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/UserTimeline", l2tBase);
+
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            l2tTimeline = await responseMessage.Content.ReadFromJsonAsync<List<L2TTimeline>>(); // l2tTweet is never null
+        }
+    }
+
+    private void TwitterOAuth2()
     {
         // 'true' as a second parameter (optional, default = false) means the page will refresh, like a F5.
         // "/OAuth2/Begin" is the route to the OAuth2 controller on the server which redirects the user to
@@ -108,35 +128,14 @@ else if (!string.IsNullOrEmpty(l2tBase.UserId))
         {
             long ticksLeft = l2tBase.ExpireTokenTicks - DateTime.UtcNow.Ticks;
             TimeSpan expires = new TimeSpan(ticksLeft);
-            double expiresInMin = Math.Round(expires.TotalMinutes, 2);
 
-            switch (expiresInMin)
-            {
-                case < 5:
-                    await RefreshToken();
-                    break;
-                default:
-                    tokenExpiresInMin = expires.TotalMinutes.ToString(format: "N0") + " minutes.";
-                    break;
-            }
+            if (expires.TotalMinutes < 5)
+                await RefreshToken();
+            else
+                tokenExpiresInMin = expires.TotalMinutes.ToString(format: "N0") + " minutes.";
 
             await InvokeAsync(StateHasChanged);
         }, null, 0, 1000 * 60); // 1000ms * 60 = 1 minute
-    }
-
-    private async Task SendTweet()
-    {
-        l2tTweet.AccessToken = l2tBase.AccessToken;
-        l2tTweet.RefreshToken = l2tBase.RefreshToken;
-
-        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/PostTweet", l2tTweet);
-        l2tTweet = await responseMessage.Content.ReadFromJsonAsync<L2TTweet>(); // l2tTweet is never null
-
-        if (l2tTweet.TweetId != "-1") // -1 = catch error - #TODO enum
-        {
-            l2tTweet.Text = string.Empty;
-            l2tTweet.Error = string.Empty;
-        }
     }
 
     public async Task RefreshToken()
@@ -149,6 +148,8 @@ else if (!string.IsNullOrEmpty(l2tBase.UserId))
         l2tBase.ExpireTokenTicks = DateTime.UtcNow.AddSeconds(refreshResponse.expires_in).Ticks;
 
         await localStorage.SetItemAsync<L2TBase>("l2t_base", l2tBase);
+
+        tokenExpiresInMin = "Token Refreshed";
     }
 
     public async Task RevokeToken()
@@ -157,7 +158,7 @@ else if (!string.IsNullOrEmpty(l2tBase.UserId))
         //HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/RevokeToken", l2tBase);
         //status = responseMessage.Content.ToString();
 
-        l2tBase.UserId = string.Empty;
+        l2tBase.UserId = 0;
         l2tBase.AccessToken = string.Empty;
         l2tBase.RefreshToken = string.Empty;
         l2tBase.ExpireTokenTicks = 0;
