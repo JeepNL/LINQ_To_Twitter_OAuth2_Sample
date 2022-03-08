@@ -19,5 +19,4 @@ public class L2TTweet : L2TBase
 		ConversationId = conversationId;
 		ImagesB64 = imagesB64;
 	}
-
 }

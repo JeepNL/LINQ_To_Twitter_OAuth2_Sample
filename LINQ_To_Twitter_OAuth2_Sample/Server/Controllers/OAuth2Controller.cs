@@ -5,6 +5,7 @@ using LinqToTwitter.OAuth;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
+using System.Web;
 
 namespace LINQ_To_Twitter_OAuth2_Sample.Server.Controllers;
 
@@ -23,48 +24,69 @@ public class OAuth2Controller : ControllerBase
 	}
 
 	[HttpPost]
-	public async Task<ActionResult<List<L2TTimeline>>> UserTimeline(L2TBase l2TBase)
+	public async Task<ActionResult<List<L2TTimelineResponse>>> UserTimeline(L2TTimelineRequest l2tTimelineRequest)
 	{
-		OAuth2Authorizer auth = L2TOAuth2(l2TBase.AccessToken, l2TBase.RefreshToken);
+		OAuth2Authorizer auth = L2TOAuth2(l2tTimelineRequest.AccessToken, l2tTimelineRequest.RefreshToken);
 		TwitterContext twitterCtx = new TwitterContext(auth); // #TODO Try/Catch
-
-		TwitterUserQuery userQuery = await (
-				from usr in twitterCtx.TwitterUser
-				where usr.Type == UserType.IdLookup &&
-					usr.Ids == l2TBase.UserId.ToString() &&
-					usr.UserFields == UserField.ProfileImageUrl
-				select usr
-			)
-			.SingleOrDefaultAsync();
-
-		TwitterUser user = userQuery.Users.FirstOrDefault();
 
 		TweetQuery tweetQuery = await (
 				from tweet in twitterCtx.Tweets
-				where tweet.Type == TweetType.TweetsTimeline &&
-					tweet.ID == user.ID.ToString() &&
-					tweet.MaxResults == 25
+				where tweet.Type == TweetType.TweetsTimeline
+					&& tweet.ID == l2tTimelineRequest.ForUserId.ToString() // tweet.ID = Tweet AuthorId, not the id of the tweet.
+					&& tweet.UserFields == $"{UserField.AllFields}"
+					&& tweet.TweetFields == $"{TweetField.AllFieldsExceptPermissioned}"
+					&& tweet.Expansions == $"{ExpansionField.MediaKeys},{ExpansionField.AuthorID}"
+					&& tweet.MediaFields == $"{MediaField.AllFieldsExceptPermissioned}"
+					//&& tweet.PlaceFields == $"{PlaceField.AllFields}"
+					&& tweet.MaxResults == l2tTimelineRequest.MaxResults // default = 10
+					&& tweet.SinceID == l2tTimelineRequest.SinceId.ToString() // default = 0
 				select tweet
-			)
-			.SingleOrDefaultAsync();
+		).SingleOrDefaultAsync();
 
 		if (tweetQuery is not null)
 		{
-			List<L2TTimeline> tweets = (
-					from tweet in tweetQuery.Tweets
-					select new L2TTimeline
-					{
-						ImageUrl = user.ProfileImageUrl,
-						ScreenName = user.Name,
-						Text = tweet.Text
-					}
-				)
-				.ToList();
+			// TweetType.TweetsTimeline has only 1 author
+			// tweetQuery.Includes.Users works because of ExpansionField.AuthorID
+			TwitterUser author = tweetQuery.Includes.Users.Where(twitterUser => twitterUser.ID == l2tTimelineRequest.ForUserId.ToString()).FirstOrDefault();
 
-			return Ok(tweets);
+			List<L2TTimelineResponse> tlResponse = (
+					from tweet in tweetQuery.Tweets
+					select new L2TTimelineResponse
+					{
+						TweetId = Convert.ToInt64(tweet.ID),
+						ScreenName = author.Username,
+						Name = author.Name,
+						ProfileImageUrl = author.ProfileImageUrl,
+						Text = tweet.Text.Replace("\n", "<br />"),
+						TweetDate = tweet.CreatedAt,
+						Source = tweet.Source,
+						Urls = (from entityUrl in tweet.Entities.Urls
+								select new L2TUrl
+								{
+									TwitterUrl = entityUrl.Url,
+									DisplayUrl = entityUrl.DisplayUrl,
+									FullUrl = HttpUtility.UrlEncode(entityUrl.ExpandedUrl),
+								}).ToList(),
+						Media = (from mediaKey in tweet.Attachments.MediaKeys
+								 select new L2TMedia
+								 {
+									 Key = mediaKey,
+									 Type = tweetQuery.Includes.Media.Where(key => key.MediaKey == mediaKey).FirstOrDefault().Type.ToString(),
+									 Url = tweetQuery.Includes.Media.Where(key => key.MediaKey == mediaKey).FirstOrDefault().Url.ToString(),
+									 PreviewImageUrl = tweetQuery.Includes.Media.Where(key => key.MediaKey == mediaKey).FirstOrDefault().PreviewImageUrl?.ToString(),
+									 AltText = tweetQuery.Includes.Media.Where(key => key.MediaKey == mediaKey).FirstOrDefault().AltText?.ToString(),
+									 Width = tweetQuery.Includes.Media.Where(key => key.MediaKey == mediaKey).FirstOrDefault().Width,
+									 Height = tweetQuery.Includes.Media.Where(key => key.MediaKey == mediaKey).FirstOrDefault().Height,
+									 DurationMS = tweetQuery.Includes.Media.Where(key => key.MediaKey == mediaKey).FirstOrDefault().DurationMS,
+								 }).ToList(),
+						// #TODO MENTIONS * HASHTAGS
+					}
+			).ToList();
+
+			return Ok(tlResponse);
 		}
 		else
-			return NotFound();
+			return NotFound(); // #TODO, isn't 'NotFound', but 'No Results' ...
 	}
 
 	[HttpPost]
@@ -198,12 +220,6 @@ public class OAuth2Controller : ControllerBase
 			CredentialStore = new OAuth2SessionCredentialStore(HttpContext.Session)
 		};
 
-		//_logger.LogInformation("***** Complete() - HttpContext.Session.Keys:");
-		//foreach (var key in HttpContext.Session.Keys)
-		//{
-		//	_logger.LogInformation($"***** key: {key}: {HttpContext.Session.GetString(key)}");
-		//}
-
 		await auth.CompleteAuthorizeAsync(code, state);
 
 		IOAuth2CredentialStore credentials = auth.CredentialStore as IOAuth2CredentialStore;
@@ -227,7 +243,7 @@ public class OAuth2Controller : ControllerBase
 		return Redirect(url);
 	}
 
-	// Helper(s)
+	// Utilities
 	private static OAuth2Authorizer L2TOAuth2(string accessToken, string refreshToken)
 	{
 		return new()
@@ -240,3 +256,71 @@ public class OAuth2Controller : ControllerBase
 		};
 	}
 }
+
+/// TEST CODE
+
+//_logger.LogInformation("***** Complete() - HttpContext.Session.Keys:");
+//foreach (var key in HttpContext.Session.Keys)
+//{
+//	_logger.LogInformation($"***** key: {key}: {HttpContext.Session.GetString(key)}");
+//}
+
+//TwitterUserQuery userQuery = await (
+//		from usr in twitterCtx.TwitterUser
+//		where usr.Type == UserType.IdLookup
+//			&& usr.Ids == l2tTimelineRequest.ForUserId.ToString()
+//			&& usr.UserFields == $"{UserField.ProfileImageUrl}"
+//		select usr
+//	)
+//	.SingleOrDefaultAsync();
+//TwitterUser user = userQuery.Users.FirstOrDefault();
+
+//List<L2TTimelineResponse> tweets2 = await (
+//		from tweet in twitterCtx.Tweets
+//		where tweet.Type == TweetType.TweetsTimeline
+//			&& tweet.ID == l2tTimelineRequest.ForUserId.ToString()
+//			&& tweet.UserFields == $"{UserField.AllFields}"
+//			&& tweet.TweetFields == $"{TweetField.AllFieldsExceptPermissioned}"
+//			&& tweet.Expansions == $"{ExpansionField.MediaKeys},{ExpansionField.AuthorID}"
+//			&& tweet.MediaFields == $"{MediaField.AllFieldsExceptPermissioned}"
+//			&& tweet.PlaceFields == $"{PlaceField.AllFields}"
+//			&& tweet.MaxResults == l2tTimelineRequest.MaxResults
+//			&& tweet.SinceID == l2tTimelineRequest.SinceId.ToString()
+//		select new L2TTimelineResponse
+//		{
+//			ProfileImageUrl = tweet.User.ProfileImageUrl,
+//			ScreenName = tweet.User.ScreenNameResponse,
+//			Text = tweet.FullText ?? tweet.Text
+//		}).ToListAsync();
+//return Ok(tweets2);
+
+//foreach (Tweet twt in tweetQuery.Tweets)
+//{
+//	Console.WriteLine($"\n***** START FULLTWEET: {twt.Text}");
+//	if (twt.Entities?.Urls is not null)
+//	{
+//		Console.WriteLine($"***** START URLS *****");
+//		foreach (TweetEntityUrl url in twt.Entities.Urls)
+//			Console.WriteLine($"     ***** twt url.Url: {url.Url} - url.DisplayUrl: {url.DisplayUrl} - url.ExpandedUrl: {url.ExpandedUrl}");
+//		Console.WriteLine($"***** END URLS *****\n");
+//	}
+//	if (twt.Entities?.Hashtags is not null)
+//	{
+//		Console.WriteLine($"***** START HASHTAGS *****");
+//		foreach (TweetEntityHashtag hashtag in twt.Entities.Hashtags)
+//			Console.WriteLine($"***** twt hashtag.Tag: {hashtag.Tag}");
+//		Console.WriteLine($"***** END HASHTAGS *****\n");
+//	}
+
+//	if (twt.Attachments?.MediaKeys is not null)
+//	{
+//		Console.WriteLine($"***** START MEDIAKEYS *****");
+//		foreach (string mediaKey in twt.Attachments.MediaKeys)
+//		{
+//			TwitterMedia twitterMedia = tweetQuery.Includes.Media.Where(key => key.MediaKey == mediaKey).FirstOrDefault();
+//			Console.WriteLine($"***** twt.ID: {twt.ID} - mf.Type: {twitterMedia.Type} - mf.MediaKey: {twitterMedia.MediaKey} - mf.Url: {twitterMedia.Url}");
+//		}
+//		Console.WriteLine($"***** END MEDIAKEYS *****\n");
+//	}
+//	Console.WriteLine($"***** END FULLTWEET");
+//}

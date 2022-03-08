@@ -1,4 +1,5 @@
 ﻿@page "/"
+@using System.Text.RegularExpressions
 @implements IDisposable
 @inject Blazored.LocalStorage.ILocalStorageService localStorage
 @inject NavigationManager NavMan
@@ -56,11 +57,24 @@ else
     </div>
 
     <div class="mt-2">
-        <h2>Timeline</h2>
-        @foreach (var item in l2tTimeline)
+        <h2>Your Tweets</h2>
+        @foreach (var tweet in l2tTimeline)
         {
-            <div class="mt-1">
-                @item.Text
+            <div class="card text-dark bg-light mb-3" style="max-width: 800px;">
+                <div class="row g-0">
+                    <div class="col-md-1">
+                        &nbsp;&nbsp;<img src="@tweet.ProfileImageUrl" class="mt-2 img-fluid rounded-start">
+                    </div>
+                    <div class="col-md-11">
+                        <div class="card-header py-0">@tweet.Name (@@@tweet.ScreenName)</div>
+                        <div class="card-body py-2">
+                            <p class="card-text py-0">@((MarkupString)TweetParser(tweet.Text))</p>
+                        </div>
+                        <div class="card-footer pl-4 py-0">
+                            <small class="text-muted">@tweet.TweetDate?.ToLocalTime() - Via: @tweet.Source</small>
+                        </div>
+                    </div>
+                </div>
             </div>
         }
     </div>
@@ -70,21 +84,37 @@ else
     private Timer _timer;
     private L2TBase l2tBase = new();
     private L2TTweet l2tTweet = new();
-    private List<L2TTimeline> l2tTimeline = new();
+    private L2TTimelineRequest l2TTimelineRequest = new();
+    private List<L2TTimelineResponse> l2tTimeline = new();
     private string tweetText = string.Empty;
     private string tokenExpiresInMin = string.Empty;
+    private long lastId = 0;
+    private Regex regexAt;
+    private Regex regexHash;
+    private Regex regexUrl;
+    private bool auth = false;
 
     protected override async Task OnInitializedAsync()
     {
-        l2tBase = await localStorage.GetItemAsync<L2TBase>("l2t_base");
+        //RegEx Init
+        regexAt = new Regex(@"(?<=^|(?<=[^a-zA-Z0-9-_\\.]))@([A-Za-z_]+[A-Za-z0-9_]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        regexHash = new Regex(@"(?<=^|(?<=[^a-zA-Z0-9\\.]))#([A-Za-z]+[A-Za-z0-9]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        regexUrl = new Regex(@"", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+        l2tBase = await localStorage.GetItemAsync<L2TBase>("l2t_base");
         if (l2tBase is not null && !string.IsNullOrEmpty(l2tBase.AccessToken) && !string.IsNullOrEmpty(l2tBase.RefreshToken))
         {
             StartTimer();
-            await UserTimeline();
+            auth = true;
         }
         else
             await localStorage.SetItemAsync<L2TBase>("l2t_base", l2tBase = new());
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (auth)
+            await UserTimeline();
     }
 
     private async Task PostTweet()
@@ -104,11 +134,18 @@ else
 
     private async Task UserTimeline()
     {
-        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/UserTimeline", l2tBase);
+        l2TTimelineRequest.AccessToken = l2tBase.AccessToken;
+        l2TTimelineRequest.RefreshToken = l2tBase.RefreshToken;
+        l2TTimelineRequest.ForUserId = l2tBase.UserId;
+        l2TTimelineRequest.ForScreenName = ""; // #TODO
+        l2TTimelineRequest.Filter = ""; // #TODO
+        l2TTimelineRequest.SinceId = lastId;
+
+        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/UserTimeline", l2TTimelineRequest);
 
         if (responseMessage.IsSuccessStatusCode)
         {
-            l2tTimeline = await responseMessage.Content.ReadFromJsonAsync<List<L2TTimeline>>(); // l2tTweet is never null
+            l2tTimeline = await responseMessage.Content.ReadFromJsonAsync<List<L2TTimelineResponse>>();
         }
     }
 
@@ -169,6 +206,22 @@ else
     public void Dispose()
     {
         _timer?.Dispose();
+    }
+
+    // utilities
+
+    public string TweetParser(string s) // #TODO #INPROGRESS
+    {
+        //Console.WriteLine($"1: {s}");
+
+        //@ and #
+        s = regexAt.Replace(s, @"<a href=""https://twitter.com/$0"" target=""_blank"">$0</a>");
+        s = regexHash.Replace(s, @$"<a href=""https://twitter.com/search?q=$0"" target=""_blank"">$0</a>");
+
+        // https://twitter.com/search?q=%23hash
+        // https://twitter.com/hashtag/Test2
+        s = s.Replace("?q=#", "?q=%23");
+        return s;
     }
 
     //Console.WriteLine($": {}");
