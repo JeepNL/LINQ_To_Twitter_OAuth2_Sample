@@ -2,12 +2,12 @@
 public class L2TTimelineRequest : L2TBase
 {
 	public string ForScreenName { get; set; }
-	public long ForUserId { get; set; }
+	public string ForUserId { get; set; }
 	public int MaxResults { get; set; }
 	public long SinceId { get; set; }
 	public string Filter { get; set; }
 	public L2TTimelineRequest(string forScreenName = "",
-							  long forUserId = 0,
+							  string forUserId = "0",
 							  int maxResults = 10,
 							  long sinceId = 0,
 							  string filter = "")

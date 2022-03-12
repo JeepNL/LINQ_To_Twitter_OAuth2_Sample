@@ -7,7 +7,7 @@
     [Parameter][SupplyParameterFromQuery] public string access_token { get; set; }
     [Parameter][SupplyParameterFromQuery] public string refresh_token { get; set; }
     [Parameter][SupplyParameterFromQuery] public long expire_token_ticks { get; set; }
-    [Parameter][SupplyParameterFromQuery] public long user_id { get; set; }
+    [Parameter][SupplyParameterFromQuery] public string user_id { get; set; }
     [Parameter][SupplyParameterFromQuery] public bool access_denied { get; set; }
 
     protected override async Task OnInitializedAsync()
