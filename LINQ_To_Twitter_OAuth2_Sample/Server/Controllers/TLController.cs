@@ -4,6 +4,8 @@ using LinqToTwitter;
 using LinqToTwitter.Common;
 using LinqToTwitter.OAuth;
 using Microsoft.AspNetCore.Mvc;
+using System.Linq;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace LINQ_To_Twitter_OAuth2_Sample.Server.Controllers;
 
@@ -25,9 +27,9 @@ public class TLController : ControllerBase
 					&& tweet.ID == l2tTimelineRequest.ForUserId.ToString() // tweet.ID = Tweet AuthorId, not the id of the tweet.
 					&& tweet.UserFields == $"{UserField.AllFields}"
 					&& tweet.TweetFields == $"{TweetField.AllFieldsExceptPermissioned}"
-					&& tweet.Expansions == $"{ExpansionField.MediaKeys},{ExpansionField.AuthorID},{ExpansionField.PlaceID}"
+					&& tweet.Expansions == $"{ExpansionField.MediaKeys},{ExpansionField.AuthorID}, {ExpansionField.ReferencedTweetID}"
 					&& tweet.MediaFields == $"{MediaField.AllFieldsExceptPermissioned}"
-					&& tweet.PlaceFields == $"{PlaceField.AllFields}"
+					//&& tweet.PlaceFields == $"{PlaceField.AllFields}"
 					&& tweet.MaxResults == l2tTimelineRequest.MaxResults // default = 10
 					&& tweet.SinceID == l2tTimelineRequest.SinceId.ToString() // default = 0
 				select tweet
@@ -39,44 +41,39 @@ public class TLController : ControllerBase
 			// tweetQuery.Includes.Users works because of ExpansionField.AuthorID
 			TwitterUser? author = tweetQuery.Includes?.Users?.Where(twitterUser => twitterUser.ID == l2tTimelineRequest.ForUserId.ToString()).FirstOrDefault();
 
-			// One query for the complete media list in tweetQuery - for: NEW Media List below
-			List<L2TTwitterMediaDTO>? tweetMediaList = tweetQuery.Includes?.Media is null ? null : (
-				from mediaKey
-				in tweetQuery.Includes?.Media
-				select new L2TTwitterMediaDTO
-				{
-					MediaKey = mediaKey.MediaKey,
-					Type = (L2TTweetMediaType)mediaKey.Type,
-					PreviewImageUrl = mediaKey.PreviewImageUrl,
-					AltText = mediaKey.AltText,
-					Width = mediaKey.Width,
-					Height = mediaKey.Height,
-					DurationMS = mediaKey.DurationMS,
-					Url = mediaKey.Url,
-					// #TODO (?)
-					//PublicMetrics = mediaKey.PublicMetrics
-					//NonPublicMetrics = mediaKey.NonPublicMetrics,
-					//OrganicMetrics = mediaKey.OrganicMetrics,
-					//PromotedMetrics = mediaKey.PromotedMetrics,
-				}
-			).ToList();
-
 			List<L2TTimelineResponse> utlResponse = (
 					from tweet
 					in tweetQuery.Tweets
 					select new L2TTimelineResponse // = DTO
 					{
-						//TweetId = Convert.ToInt64(tweet.ID),
 						TweetId = tweet.ID,
 						ScreenName = author?.Username,
 						Name = author?.Name,
 						AuthorId = author?.ID,
 						ProfileImageUrl = author?.ProfileImageUrl,
-						Text = tweet.Text?.Replace("\n", "<br />"),
+						Text = tweet.Text!.Replace("\n", "<br />"),
 						TweetDate = tweet.CreatedAt,
 						Source = tweet.Source,
 
-						// #TODO MENTIONS * HASHTAGS
+						// if tweet.RefecencedTweets.Type == "retweeted" full text of retweeted tweet is in includedTweets.Text
+						ReferencedTweets = tweet.ReferencedTweets is null ? null : (
+							from includedTweets
+							in tweetQuery.Includes?.Tweets
+							where tweet.ReferencedTweets
+								.Select(refTweet => refTweet.ID)
+								.Contains(includedTweets.ID)
+							select new L2TReferencedTweetDTO
+							{
+								Id = includedTweets.ID,
+								Text = includedTweets.Text?.Replace("\n", "<br />"),
+								Type = tweet.ReferencedTweets?
+									.Where(refTweet => refTweet.ID == includedTweets.ID)
+									.Select(a => a.Type).SingleOrDefault()?
+									.ToString()
+							}
+						).ToArray(),
+
+						// #TODO MENTIONS & HASHTAGS
 
 						Urls = tweet.Entities?.Urls is null ? null : (
 							from selectEntityUrl
@@ -89,15 +86,22 @@ public class TLController : ControllerBase
 							}
 						).ToArray(),
 
-						// NEW Media List // works but doesn't look/feel good to me (yet) i.e: from selectTweetMedia / select selectTweetMedia ...
-						//Media = tweetMediaList?.Count is null ? null : (
-						Media = tweetMediaList is null ? null : (
-							from selectTweetMedia
-							in tweetMediaList
-							where (tweet.Attachments?.MediaKeys is null) ? false : tweet.Attachments.MediaKeys.Contains(selectTweetMedia.MediaKey!)
-							//where tweet.Attachments?.MediaKeys is not null && tweet.Attachments.MediaKeys.Contains(selectTweetMedia.MediaKey)
-							select selectTweetMedia
-						).ToArray()
+						Media = tweetQuery.Includes?.Media is null ? null : (
+							from mediaKey
+							in tweetQuery.Includes?.Media
+							where (tweet.Attachments?.MediaKeys is null) ? false : tweet.Attachments.MediaKeys.Contains(mediaKey.MediaKey!)
+							select new L2TTwitterMediaDTO
+							{
+								MediaKey = mediaKey.MediaKey,
+								Type = (L2TTweetMediaType)mediaKey.Type,
+								PreviewImageUrl = mediaKey.PreviewImageUrl,
+								AltText = mediaKey.AltText,
+								Width = mediaKey.Width,
+								Height = mediaKey.Height,
+								DurationMS = mediaKey.DurationMS,
+								Url = mediaKey.Url,
+							}
+						).ToArray(),
 					}
 			).ToList();
 

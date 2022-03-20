@@ -195,12 +195,22 @@ else
             l2tTimeline = await responseMessage.Content.ReadFromJsonAsync<List<L2TTimelineResponse>>();
 
         foreach (var tweet in l2tTimeline)
-            if (tweet.Urls is not null)
+        {
+            string tweetType = tweet.ReferencedTweets?.Where(rt => rt.Type == "retweeted").SingleOrDefault()?.Type;
+            if (tweetType == "retweeted")
+            {
+                string separator = ": ";
+                int separatorIndex = tweet.Text.IndexOf(": ");
+                string result = tweet.Text.Substring(4, separatorIndex - separator.Length); // Example: "RT @ExampleUser: "
+                tweet.Text = $"<small><i><mark>You retweeted: @{result}<mark></i></small><p class=\"px-4\">{tweet.ReferencedTweets.SingleOrDefault().Text}</p>";
+            }
+            else if (tweet.Urls is not null)
                 foreach (var url in tweet.Urls)
                     if (url.DisplayUrl.StartsWith("pic.twitter.com/"))
                         tweet.Text = tweet.Text.Replace(url.Url, string.Empty);
                     else
                         tweet.Text = tweet.Text.Replace(url.Url, $"<a href=\"{url.ExpandedUrl}\">{url.DisplayUrl}</a>");
+        }
 
         Console.WriteLine($"***** UserTimeline() - END");
     }
@@ -229,6 +239,9 @@ else
 
         await localStorage.SetItemAsync<L2TBase>("l2t_base", l2tBase);
         tokenExpiresInMin = "120";
+
+        Console.WriteLine($"***** RefreshToken() - END");
+
     }
 
     public async Task RevokeToken()
@@ -282,7 +295,7 @@ else
 
         //@ and #
         tweetText = regexAt.Replace(tweetText, @"<a href=""https://twitter.com/$0"" target=""_blank"">$0</a>");
-        tweetText = regexHash.Replace(tweetText, @$"<a href=""https://twitter.com/search?q=$0"" target=""_blank"">$0</a>");
+        tweetText = regexHash.Replace(tweetText, @"<a href=""https://twitter.com/search?q=$0"" target=""_blank"">$0</a>");
 
         // https://twitter.com/search?q=%23hash
         // https://twitter.com/hashtag/Test2

@@ -1,7 +1,6 @@
 ﻿namespace LINQ_To_Twitter_OAuth2_Sample.Shared.Models;
 public class L2TTimelineResponse
 {
-
 	public string? TweetId { get; set; }
 	public string? ScreenName { get; set; }
 	public string? Name { get; set; }
@@ -10,10 +9,18 @@ public class L2TTimelineResponse
 	public DateTime? TweetDate { get; set; }
 	public string? Text { get; set; }
 	public string? Source { get; set; }
+	public L2TReferencedTweetDTO[]? ReferencedTweets { get; set; }
 	public L2TTweetEntityUrlDTO[]? Urls { get; set; }
 	public L2TTwitterMediaDTO[]? Media { get; set; }
 
 	// #TODO HASHTAGS & MENTIONS
+}
+
+public class L2TReferencedTweetDTO // #TODO NEEDS A LOT OF EXTRA WORK
+{
+	public string? Id { get; set; }
+	public string? Text { get; set; }
+	public string? Type { get; set; }
 }
 
 // #TODO SEPERATE FILES
@@ -44,3 +51,4 @@ public enum L2TTweetMediaType
 	Photo,
 	Video
 }
+
