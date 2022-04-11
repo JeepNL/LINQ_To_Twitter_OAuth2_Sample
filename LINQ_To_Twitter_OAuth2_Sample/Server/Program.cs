@@ -1,4 +1,5 @@
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseSystemd();
 
 // read twitterkeys.ini file, set environment variables.
 builder.Host.ConfigureAppConfiguration((hostingContext, config) =>

@@ -4,6 +4,7 @@ using LinqToTwitter.OAuth;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
+using System.Web;
 
 namespace LINQ_To_Twitter_OAuth2_Sample.Server.Controllers;
 
@@ -88,6 +89,7 @@ public class OAuth2Controller : ControllerBase
 					 $"refresh_token={credentials?.RefreshToken}&" +
 					 $"expire_token_ticks={DateTime.UtcNow.AddMinutes(120).Ticks}&" +
 					 $"user_id={user?.ID}&" +
+					 $"name={HttpUtility.UrlEncode(user?.Name)}&" +
 					 $"access_denied=false";
 
 		return Redirect(url);

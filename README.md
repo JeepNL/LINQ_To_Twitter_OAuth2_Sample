@@ -20,12 +20,25 @@ Also at [developer.twitter.com](https://developer.twitter.com/) set your 'User a
 **Notable files:**
 
   * Client:
+    * [Client/LINQ_To_Twitter_OAuth2_Sample.Client.csproj](LINQ_To_Twitter_OAuth2_Sample/Client/LINQ_To_Twitter_OAuth2_Sample.Client.csproj)
     * [Client/Pages/Index.razor](LINQ_To_Twitter_OAuth2_Sample/Client/Pages/Index.razor)
     * [Client/Pages/Callback.razor](LINQ_To_Twitter_OAuth2_Sample/Client/Pages/Callback.razor)
 
   * Server:
+    * [Client/LINQ_To_Twitter_OAuth2_Sample.Server.csproj](LINQ_To_Twitter_OAuth2_Sample/Server/LINQ_To_Twitter_OAuth2_Sample.Server.csproj)
     * [Server/Program.cs](LINQ_To_Twitter_OAuth2_Sample/Server/Program.cs)
     * [Server/Controllers/OAuth2Controller.cs](LINQ_To_Twitter_OAuth2_Sample/Server/Controllers/OAuth2Controller.cs)
+    * [Server/Helpers/OAuth2Helper.cs](LINQ_To_Twitter_OAuth2_Sample/Server/Helpers/OAuth2Helper.cs)
+    * [Server/Controllers/TLController.cs](LINQ_To_Twitter_OAuth2_Sample/Server/Controllers/TLController.cs)
+    * [Server/Controllers/TweetController.cs](LINQ_To_Twitter_OAuth2_Sample/Server/Controllers/TweetController.cs)
+	
+  * Shared
+    * [Shared/LINQ_To_Twitter_OAuth2_Sample.Shared.csproj](LINQ_To_Twitter_OAuth2_Sample/Shared/LINQ_To_Twitter_OAuth2_Sample.Shared.csproj)
+    * [Shared/Models/L2TBase.cs](LINQ_To_Twitter_OAuth2_Sample/Shared/Models/L2TBase.cs)
+    * [Shared/Models/L2TTimelineRequest.cs](LINQ_To_Twitter_OAuth2_Sample/Shared/Models/L2TTimelineRequest.cs)
+    * [Shared/Models/L2TTimelineResponse.cs](LINQ_To_Twitter_OAuth2_Sample/Shared/Models/L2TTimelineResponse.cs)
+	
+--
 
 **Joe Mayo's LINQ to Twitter ASP.NET 6 OAuth2 GitHub Examples:**
 

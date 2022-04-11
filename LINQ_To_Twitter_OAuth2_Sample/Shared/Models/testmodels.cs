@@ -11,19 +11,19 @@ public class testmodels
 
 	public class TstRootobject
 	{
-		public TstDatum[]? data { get; set; }
+		public TstDate[]? data { get; set; }
 		public TstIncludes? includes { get; set; }
 		public TstError[]? errors { get; set; }
 	}
 
 	public class TstIncludes
 	{
-		public TstMedium[]? media { get; set; }
+		public TstMedia[]? media { get; set; }
 		public TstUser[]? users { get; set; }
 		public TstTweet[]? tweets { get; set; }
 	}
 
-	public class TstMedium
+	public class TstMedia
 	{
 		public int height { get; set; }
 		public string? url { get; set; }
@@ -109,7 +109,7 @@ public class testmodels
 		public string? name { get; set; }
 	}
 
-	public class TstDatum
+	public class TstDate
 	{
 		public string? id { get; set; }
 		public DateTime created_at { get; set; }
@@ -131,7 +131,7 @@ public class testmodels
 
 	public class TstEntities1
 	{
-		public TstUrl1[] urls { get; set; }
+		public TstUrl1[]? urls { get; set; }
 		public TstMention[]? mentions { get; set; }
 	}
 

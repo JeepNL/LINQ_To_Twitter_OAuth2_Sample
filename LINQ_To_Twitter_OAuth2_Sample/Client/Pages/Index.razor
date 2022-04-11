@@ -1,218 +1,144 @@
 ﻿@page "/"
 @using System.Text.RegularExpressions
-@implements IDisposable
-@inject Blazored.LocalStorage.ILocalStorageService localStorage
+@using LINQ_To_Twitter_OAuth2_Sample.Client.Models
+@using LINQ_To_Twitter_OAuth2_Sample.Client.Services
 @inject NavigationManager NavMan
+@inject AppDataService appDataService
 @inject HttpClient Http
 
 <PageTitle>Index</PageTitle>
 
 <h1>Blazor WASM L2T OAuth 2.0</h1>
 
-@if (l2tBase.UserId == "0")
-{
-    <div class="mt-2">
-        <button class="btn btn-primary" @onclick=TwitterOAuth2>Twitter OAuth2</button>
-    </div>
-}
-else
-{
-    <EditForm Model="@l2tTweet" OnValidSubmit="@PostTweet">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
-        <div class="col-6 mt-2">
-            <small class="text-muted">Put that on your plate!</small>
+<div class="mt-4">
+    @if (appDataService.UserId != "0")
+    {
+        <EditForm Model="@l2tTweet" OnValidSubmit="@PostTweet">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <div class="col-6 mt-2">
+                <small class="text-muted">Put that on your plate!</small>
+            </div>
+            <div class="row align-items-center">
+                <div class="col-6">
+                    <InputTextAreaCount id="textarea" class="form-control" @bind-Value=l2tTweet!.Text />
+                </div>
+                <div class="col-2">
+                    <button type="submit" class="btn btn-sm btn-primary">Tweet</button>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-6 text-end">
+                    <small class="text-muted">@(280 - l2tTweet.Text?.Length)</small>
+                </div>
+            </div>
+        </EditForm>
+
+        <div class="mt-2">
+            @if (l2tTweet?.TweetId == "-1") // error
+            {
+                <small class="text-danger">Tweet Error: @l2tTweet?.ErrorMessage</small>
+            }
         </div>
-        <div class="row align-items-center">
-            <div class="col-6">
-                <InputTextAreaCount id="textarea" class="form-control" @bind-Value=l2tTweet.Text />
-            </div>
-            <div class="col-2">
-                <button type="submit" class="btn btn-sm btn-primary">Tweet</button>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-5">
-                <small class="text-muted">Token expires in: @tokenExpiresInMin</small>
-            </div>
-            <div class="col-1 text-end">
-                <small class="text-muted">@(280 - l2tTweet.Text.Length)</small>
-            </div>
-        </div>
-    </EditForm>
 
-    <div class="mt-2">
-        @if (!string.IsNullOrEmpty(l2tTweet.TweetId))
+        if (browserTweets?.Count > 0)
         {
-            <small class="text-success">Last Tweet ID: @l2tTweet.TweetId</small>
-        }
-        else if (l2tTweet.TweetId == "-1") // error
-        {
-            <small class="text-danger">Tweet Error: @l2tTweet.ErrorMessage</small>
-        }
-    </div>
+            foreach (var tweet in browserTweets)
+            {
+                <div class="card text-dark bg-light mb-3" style="max-width: 800px;">
+                    <div class="row g-0">
+                        <div class="col-md-1">
+                            &nbsp;&nbsp;<img src="@tweet.ProfileImageUrl" class="mt-2 img-fluid rounded-circle">
+                        </div>
+                        <div class="col-md-11">
+                            <div class="card-header py-0">
+                                <b>@tweet.Name</b> (<a href="https://twitter.com/@tweet.UserName" target="_blank"><i>@@@tweet.UserName</i>)</a>
+                                @if (tweet.isRetweet)
+                                {
+                                    <small><mark>&nbsp;<b>Retweet</b>&nbsp;</mark></small>
+                                }
 
-    <div class="mt-2">
-        <button @onclick="RevokeToken" class="btn btn-sm btn-primary">Revoke Token</button>
-    </div>
-
-    <div class="mt-2">
-        <h2>Your Tweets</h2>
-        @foreach (var tweet in l2tTimeline)
-        {
-            <div class="card text-dark bg-light mb-3" style="max-width: 800px;">
-                <div class="row g-0">
-                    <div class="col-md-1">
-                        &nbsp;&nbsp;<img src="@tweet.ProfileImageUrl" class="mt-2 img-fluid rounded-start">
-                    </div>
-                    <div class="col-md-11">
-                        <div class="card-header py-0"><b>@tweet.Name</b> (<a href="https://twitter.com/@tweet.ScreenName" target="_blank"><i>@@@tweet.ScreenName</i>)</a></div>
-                        <div class="card-body py-2">
-                            <p class="card-text py-0">@((MarkupString)TweetParser(tweet.Text))</p>
-
-                            <div class="container">
-                                <div class="row row-cols-2">
-
-                                    @foreach (var media in tweet.Media)
-                                    {
-                                        // #TODO Check Photo/Video/AnimGif
-                                        // #TODO Different layouts for 1 or 3 image(s)
-                                        <div class="col">
-                                            @*<img style="width: 300px;height: 150px;object-fit:cover;" src="@media.Url" width="@media.Width" height="@media.Height" alt="@media.AltText" />*@
-                                            <a href="@media.Url" target="_blank">
-                                                <img class="col img-fluid" style="height:150px;object-fit:cover" src="@media.Url" alt="@media.AltText" width="@media.Width" height="@media.Height" />
-                                            </a>
-                                        </div>
-                                    }
-
+                            </div>
+                            <div class="card-body py-2">
+                                <p class="card-text py-0">@((MarkupString)TweetParser(tweet.Text ?? ""))</p>
+                                <div class="container">
+                                    @*#TODO ONLY 2 COLS if Type = Photo*@
+                                    <div class="row row-cols-2">
+                                        @if (tweet.MediaList is not null)
+                                            foreach (var media in tweet.MediaList)
+                                                if (media?.Type == "photo")
+                                                {
+                                                    <div class="col">
+                                                        <a href="@media?.Url" target="_blank">
+                                                            <img class="col img-fluid rounded" style="height:150px;object-fit:cover" src="@media?.Url" alt="@media?.AltText" width="@media?.Width" height="@media?.Height" />
+                                                        </a>
+                                                    </div>
+                                                }
+                                                @*#TODO ADD IF GIF (= Video .MP4)*@
+                                                else
+                                                {
+                                                    <div class="col">
+                                                        <a href="https://twitter.com/i/web/status/@tweet.TweetId" target="_blank">
+                                                            <img class="col img-fluid rounded" style="height:150px;object-fit:cover" src="@media?.PreviewImageUrl" alt="@media?.AltText" width="@media?.Width" height="@media?.Height" />
+                                                        </a>
+                                                    </div>
+                                                }
+                                    </div>
                                 </div>
                             </div>
+                            <div class="card-footer pl-4 py-0">
+                                <small class="text-muted">
+                                    @{
+                                        if (!tweet.isRetweet)
+                                        {
+                                            <a href="#" @onclick="(() => DeleteTweet(tweet))"><span class="oi oi-trash link-danger" aria-hidden="true" /></a>
+                                        }
 
-                        </div>
-                        <div class="card-footer pl-4 py-0">
-                            <small class="text-muted">
-                                <a href="#" @onclick="(() => DeleteTweet(tweet))"><span class="oi oi-trash link-danger" aria-hidden="true" /></a>&nbsp;
-                                @tweet.TweetDate?.ToLocalTime() -
-                                Via: @tweet.Source
-                            </small>
+                                        if (!tweet.isNewTweet)
+                                        {
+                                            <span>@tweet.CreatedAt.ToLocalTime() - Via: @tweet.Source</span>
+                                        }
+                                    }
+                                </small>
+                            </div>
                         </div>
                     </div>
                 </div>
+            }
+        }
+        else if (loading)
+        {
+            <div class="mt-2 d-flex text-primary align-items-center">
+                @*<div class="spinner-border ms-auto" role="status" aria-hidden="true"></div>*@
+                <div class="spinner-border" role="status" aria-hidden="true"></div>
+                <div class="mt-1">&nbsp;&nbsp;Loading Tweets ...</div>
             </div>
         }
-    </div>
-}
+    }
+    else
+    {
+        <div class="mt-2">
+            <button class="btn btn-primary" @onclick=TwitterOAuth2>Login with Twitter</button>
+        </div>
+    }
+</div>
 
 @code {
-    private Timer _timer;
-    private L2TBase l2tBase = new();
-    private L2TTweet l2tTweet = new();
-    private L2TTimelineRequest l2TTimelineRequest = new();
-    private List<L2TTimelineResponse> l2tTimeline = new();
+    private L2TTimelineRequest? l2tTimelineRequest = new();
+    private L2TTweet? l2tTweet = new(); // for posting
+    private List<BrowserTweet>? browserTweets = new(); // new List for this Browser Page, to add, delete etc.
     private string tweetText = string.Empty;
-    private string tokenExpiresInMin = string.Empty;
-    private long lastId = 0;
+    private bool loading = false;
 
     private Regex regexAt = new Regex(@"(?<=^|(?<=[^a-zA-Z0-9-_\\.]))@([A-Za-z_]+[A-Za-z0-9_]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private Regex regexUrl = new Regex(@"", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private Regex regexHash = new Regex(@"(?<=^|(?<=[^a-zA-Z0-9\\.]))#([A-Za-z]+[A-Za-z0-9]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    //private Regex regexUrl = new Regex(@"", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    //private bool auth = false;
-
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
-        Console.WriteLine($"***** OnInitializedAsync() BEGIN");
-
-        l2tBase = await localStorage.GetItemAsync<L2TBase>("l2t_base");
-        if (l2tBase is not null && !string.IsNullOrEmpty(l2tBase.AccessToken) && !string.IsNullOrEmpty(l2tBase.RefreshToken))
-        {
-            //Console.WriteLine($"***** OnInitializedAsync() - auth = true;");
-            //auth = true;
-            Console.WriteLine($"***** OnInitializedAsync() - Call StartTimer();");
-            StartTimer();
-
-            // #TODO if refreshtoken expires < 0 => refreshtokem
+        Console.WriteLine($"***** Index OnParametersSetAsync - appDataService.UserId: {appDataService.UserId}");
+        if (appDataService.UserId != "0") // if "0" not authorized
             await UserTimeline();
-        }
-        else
-            await localStorage.SetItemAsync<L2TBase>("l2t_base", l2tBase = new());
-
-        Console.WriteLine($"***** OnInitializedAsync() END");
-    }
-
-    public async Task DeleteTweet(L2TTimelineResponse tweet)
-    {
-        if (tweet.AuthorId == l2tBase.UserId)
-        {
-            L2TTweet deleteTweet = new()
-                {
-                    Text = tweet.Text, // required field: L2TTweet.cs
-                    TweetId = tweet.TweetId,
-                    AuthorId = tweet.AuthorId,
-                    AccessToken = l2tBase.AccessToken,
-                    RefreshToken = l2tBase.RefreshToken,
-                };
-
-            HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("Tweet/Delete", deleteTweet);
-            if (responseMessage.IsSuccessStatusCode)
-            {
-                var tweetToRemove = l2tTimeline.Single(r => r.TweetId == tweet.TweetId);
-                l2tTimeline.Remove(tweetToRemove);
-                await InvokeAsync(StateHasChanged);
-            }
-        }
-    }
-
-    private async Task PostTweet()
-    {
-        l2tTweet.AccessToken = l2tBase.AccessToken;
-        l2tTweet.RefreshToken = l2tBase.RefreshToken;
-
-        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("Tweet/Post", l2tTweet);
-        l2tTweet = await responseMessage.Content.ReadFromJsonAsync<L2TTweet>(); // l2tTweet is never null
-
-        if (responseMessage.IsSuccessStatusCode)
-        {
-            l2tTweet.Text = string.Empty;
-            l2tTweet.ErrorMessage = string.Empty;
-        }
-    }
-
-    private async Task UserTimeline()
-    {
-        Console.WriteLine($"***** UserTimeline() - BEGIN");
-        l2TTimelineRequest.AccessToken = l2tBase.AccessToken;
-        l2TTimelineRequest.RefreshToken = l2tBase.RefreshToken;
-        l2TTimelineRequest.ForUserId = l2tBase.UserId;
-        l2TTimelineRequest.ForScreenName = ""; // #TODO
-        l2TTimelineRequest.Filter = ""; // #TODO
-        l2TTimelineRequest.MaxResults = 25;
-        l2TTimelineRequest.SinceId = lastId;
-
-        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("TL/UserTimeline", l2TTimelineRequest);
-
-        if (responseMessage.IsSuccessStatusCode)
-            l2tTimeline = await responseMessage.Content.ReadFromJsonAsync<List<L2TTimelineResponse>>();
-
-        foreach (var tweet in l2tTimeline)
-        {
-            string tweetType = tweet.ReferencedTweets?.Where(rt => rt.Type == "retweeted").SingleOrDefault()?.Type;
-            if (tweetType == "retweeted")
-            {
-                string separator = ": ";
-                int separatorIndex = tweet.Text.IndexOf(": ");
-                string result = tweet.Text.Substring(4, separatorIndex - separator.Length); // Example: "RT @ExampleUser: "
-                tweet.Text = $"<small><i><mark>You retweeted: @{result}<mark></i></small><p class=\"px-4\">{tweet.ReferencedTweets.SingleOrDefault().Text}</p>";
-            }
-            else if (tweet.Urls is not null)
-                foreach (var url in tweet.Urls)
-                    if (url.DisplayUrl.StartsWith("pic.twitter.com/"))
-                        tweet.Text = tweet.Text.Replace(url.Url, string.Empty);
-                    else
-                        tweet.Text = tweet.Text.Replace(url.Url, $"<a href=\"{url.ExpandedUrl}\">{url.DisplayUrl}</a>");
-        }
-
-        Console.WriteLine($"***** UserTimeline() - END");
     }
 
     private void TwitterOAuth2()
@@ -224,84 +150,203 @@ else
         NavMan.NavigateTo("/OAuth2/Begin", true);
     }
 
-    public async Task RefreshToken()
+    //public async Task RevokeToken()
+    //{
+    //    await Http.PostAsJsonAsync("OAuth2/RevokeToken", l2tBase);
+    //    //HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/RevokeToken", l2tBase);
+    //    //status = responseMessage.Content.ToString();
+    //    l2tBase!.UserId = "0";
+    //    l2tBase.AccessToken = string.Empty;
+    //    l2tBase.RefreshToken = string.Empty;
+    //    l2tBase.ExpireTokenTicks = 0;
+    //    await localStorage.SetItemAsync<L2TBase>("l2t_base", l2tBase);
+    //}
+
+    private async Task UserTimeline()
     {
-        // #TODO CHECK IF REFRESHTOKEN IS VALID
+        // #TODO - check if user revoked twitter access
 
-        Console.WriteLine($"***** RefreshToken() - BEGIN");
+        loading = true;
+        l2tTimelineRequest!.AccessToken = appDataService.AccessToken;
+        l2tTimelineRequest.RefreshToken = appDataService.RefreshToken;
+        //l2TTimelineRequest.ForUserId = "16761255"; // Linq2Twitr
+        l2tTimelineRequest.ForUserId = appDataService.UserId!;
+        l2tTimelineRequest.ForScreenName = ""; // #TODO
+        l2tTimelineRequest.Filter = ""; // #TODO
+        l2tTimelineRequest.MaxResults = 25;
 
-        HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/RefreshToken", l2tBase);
-        L2TRefreshResponse refreshResponse = await responseMessage.Content.ReadFromJsonAsync<L2TRefreshResponse>();
-
-        l2tBase.AccessToken = refreshResponse.access_token;
-        l2tBase.RefreshToken = refreshResponse.refresh_token;
-        l2tBase.ExpireTokenTicks = DateTime.UtcNow.AddSeconds(refreshResponse.expires_in).Ticks;
-
-        await localStorage.SetItemAsync<L2TBase>("l2t_base", l2tBase);
-        tokenExpiresInMin = "120";
-
-        Console.WriteLine($"***** RefreshToken() - END");
-
-    }
-
-    public async Task RevokeToken()
-    {
-        await Http.PostAsJsonAsync("OAuth2/RevokeToken", l2tBase);
-        //HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("OAuth2/RevokeToken", l2tBase);
-        //status = responseMessage.Content.ToString();
-
-        l2tBase.UserId = "0";
-        l2tBase.AccessToken = string.Empty;
-        l2tBase.RefreshToken = string.Empty;
-        l2tBase.ExpireTokenTicks = 0;
-
-        await localStorage.SetItemAsync<L2TBase>("l2t_base", l2tBase);
-    }
-
-    // updates tokenExpiresInMin every minute
-    public void StartTimer()
-    {
-        Console.WriteLine($"***** StartTimer() - BEGIN");
-        _timer = new Timer(async _ =>
+        HttpResponseMessage? responseMessage = await Http.PostAsJsonAsync("TL/UserTimeline", l2tTimelineRequest);
+        if (responseMessage.IsSuccessStatusCode)
         {
-            long ticksLeft = l2tBase.ExpireTokenTicks - DateTime.UtcNow.Ticks;
-            TimeSpan expires = new TimeSpan(ticksLeft);
+            ClientRootResponse? clientRootResponse = await responseMessage.Content.ReadFromJsonAsync<ClientRootResponse>();
+            if (clientRootResponse?.Data is not null)
+                foreach (var tweet in clientRootResponse.Data)
+                {
+                    BrowserTweet feTweet = new(); // feTweet = '[f]or [e]ach tweet'
+                    ClientReferencedTweet[]? refTweet = tweet.ReferencedTweets?.ToArray();
+                    string? retweetId = refTweet?.Where(rt => rt.Type == "retweeted").SingleOrDefault()?.Id;
 
-            if (expires.TotalMinutes < 5)
-            {
-                Console.WriteLine($"***** StartTimer() - await RefreshToken();");
-                await RefreshToken();
-            }
+                    if (retweetId is null)
+                    {
+                        feTweet.TweetId = tweet.Id;
+                        feTweet.Text = tweet?.Text;
+                        feTweet.Source = tweet?.Source;
+                        feTweet.CreatedAt = tweet!.CreatedAt;
+                        feTweet.AuthorId = tweet?.AuthorId;
+
+                        ClientUser? tweetUser = clientRootResponse.Includes?.Users?.Where(u => u.Id == tweet?.AuthorId).SingleOrDefault();
+
+                        feTweet.Name = tweetUser?.Name;
+                        feTweet.UserName = tweetUser?.Username;
+                        feTweet.ProfileImageUrl = tweetUser?.ProfileImageUrl;
+
+                        if (tweet?.Entities?.Urls is not null)
+                            feTweet.Text = fullText(tweet.Entities.Urls, tweet.Text ?? ""); // no text, image only (for example)
+
+                        if (tweet?.Attachments?.MediaKeys is not null)
+                        {
+                            List<BrowserTweetMedia> tweetMedias = new();
+                            foreach (var mediaKey in tweet.Attachments.MediaKeys!)
+                            {
+                                ClientMedia? media = clientRootResponse.Includes?.Medias?.Where(m => m.MediaKey == mediaKey).SingleOrDefault();
+                                BrowserTweetMedia tweetMedia = new()
+                                    {
+                                        AltText = media?.AltText,
+                                        DurationMS = media?.DurationMs ?? 0,
+                                        Height = media?.Height ?? 0,
+                                        MediaKey = media?.MediaKey,
+                                        Type = media?.Type,
+                                        Width = media?.Width ?? 0,
+                                        PreviewImageUrl = media?.PreviewImageUrl,
+                                        Url = media?.Url
+                                    };
+                                tweetMedias.Add(tweetMedia!);
+                            }
+                            feTweet.MediaList = tweetMedias;
+                        }
+                    }
+                    else
+                    {
+                        ClientTweet? retweetedTweet = clientRootResponse.Includes?.Tweets?.Where(t => t.Id == retweetId).SingleOrDefault();
+
+                        feTweet.TweetId = retweetedTweet?.Id;
+                        feTweet.isRetweet = true;
+                        feTweet.Text = retweetedTweet?.Text;
+                        feTweet.Source = retweetedTweet?.Source;
+                        feTweet.CreatedAt = retweetedTweet!.CreatedAt;
+                        feTweet.AuthorId = retweetedTweet?.AuthorId;
+
+                        ClientUser? retweetedUser = clientRootResponse.Includes?.Users?.Where(u => u.Id == retweetedTweet?.AuthorId).SingleOrDefault();
+
+                        feTweet.Name = retweetedUser?.Name;
+                        feTweet.UserName = retweetedUser?.Username;
+                        feTweet.ProfileImageUrl = retweetedUser?.ProfileImageUrl;
+
+                        if (retweetedTweet?.Entities?.Urls is not null)
+                            feTweet.Text = fullText(retweetedTweet.Entities.Urls, feTweet.Text ?? ""); // no text, image only (for example)
+                    }
+
+                    browserTweets?.Add(feTweet!);
+                }
             else
-                tokenExpiresInMin = expires.TotalMinutes.ToString(format: "N0") + " minutes.";
+                Console.WriteLine($"***** l2tRootResponse?.Data IS NULL");
 
-            Console.WriteLine($"***** StartTimer() - await InvokeAsync(StateHasChanged); ");
-            await InvokeAsync(StateHasChanged);
-        }, null, 0, 1000 * 60); // 1000ms * 60 = 1 minute
+            // local function
+            string fullText(IEnumerable<ClientUrl> urls, string tweetText = "")
+            {
+                foreach (var url in urls)
+                    tweetText = tweetText.Replace(url.TwitterUrl!, $"<a href=\"{url.ExpandedUrl}\">{url.DisplayUrl}</a>");
 
-        Console.WriteLine($"***** StartTimer() - END");
-    }
-
-    public void Dispose()
-    {
-        _timer?.Dispose();
+                return tweetText;
+            }
+        }
+        loading = false;
     }
 
     // utilities
-
     public string TweetParser(string tweetText) // #TODO #INPROGRESS
     {
-        //Console.WriteLine($"1: {s}");
-
         //@ and #
-        tweetText = regexAt.Replace(tweetText, @"<a href=""https://twitter.com/$0"" target=""_blank"">$0</a>");
-        tweetText = regexHash.Replace(tweetText, @"<a href=""https://twitter.com/search?q=$0"" target=""_blank"">$0</a>");
+        tweetText = regexAt.Replace(tweetText, @"<a href=""https://twitter.com/"" target=""_blank""></a>");
+        tweetText = regexHash.Replace(tweetText, @"<a href=""https://twitter.com/search?q="" target=""_blank""></a>");
 
         // https://twitter.com/search?q=%23hash
         // https://twitter.com/hashtag/Test2
         tweetText = tweetText.Replace("?q=#", "?q=%23");
+        tweetText = tweetText.Replace("\n", "<br />");
         return tweetText;
     }
 
+    public async Task DeleteTweet(BrowserTweet tweet)
+    {
+        if (tweet.AuthorId == appDataService.UserId)
+        {
+            L2TTweet? deleteTweet = new()
+                {
+                    Text = tweet.Text, // required field: L2TTweet.cs
+                    TweetId = tweet.TweetId,
+                    AuthorId = tweet.AuthorId,
+                    AccessToken = appDataService.AccessToken,
+                    RefreshToken = appDataService.RefreshToken,
+                };
+
+            HttpResponseMessage responseMessage = await Http.PostAsJsonAsync("Tweet/Delete", deleteTweet);
+            if (responseMessage.IsSuccessStatusCode)
+            {
+                var tweetToRemove = browserTweets?.Single(r => r.TweetId == tweet.TweetId);
+                browserTweets?.Remove(tweetToRemove!);
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private async Task PostTweet()
+    {
+        l2tTweet!.AccessToken = appDataService.AccessToken;
+        l2tTweet.RefreshToken = appDataService.RefreshToken;
+        l2tTweet.AuthorId = appDataService.UserId;
+        l2tTweet.Name = appDataService.Name;
+
+        HttpResponseMessage? responseMessage = await Http.PostAsJsonAsync("Tweet/Post", l2tTweet);
+        // #TODO GET NEW ID & ADD TO LOCAL BROWSERTWEETS LIST IF OK RESPONSE
+        l2tTweet = await responseMessage.Content.ReadFromJsonAsync<L2TTweet>(); // l2tTweet is never null
+
+        if (responseMessage.IsSuccessStatusCode)
+        {
+            BrowserTweet insertTweetAtTop = new()
+                {
+                    AuthorId = l2tTweet?.AuthorId,
+                    TweetId = l2tTweet?.TweetId,
+                    Text = l2tTweet?.Text,
+                    Name = l2tTweet?.Name,
+                    isNewTweet = true, // #TODO, needs more work/fields (username, userprofileimage, createdat etc.)
+                };
+            browserTweets?.Insert(0, insertTweetAtTop);
+
+            l2tTweet!.Text = string.Empty;
+            l2tTweet.ErrorMessage = string.Empty;
+        }
+    }
+
+    //protected override async Task OnInitializedAsync()
+    //{
+    //    await Task.Delay(1);
+    //}
+
+    //protected override async Task OnParametersSetAsync()
+    //{
+    //    await Task.Delay(1);
+    //}
+
+    //protected override void OnAfterRender(bool firstRender)
+    //{
+    //    if (firstRender)
+    //        Console.WriteLine("***** Index.razor OnAfterRender First Render");
+    //    else
+    //        Console.WriteLine("***** Index.razor OnAfterRender NOT First Render");
+    //}
+
+    //Console.WriteLine("\n");
     //Console.WriteLine($"***** : {}");
+    //Console.WriteLine("\n");
 }

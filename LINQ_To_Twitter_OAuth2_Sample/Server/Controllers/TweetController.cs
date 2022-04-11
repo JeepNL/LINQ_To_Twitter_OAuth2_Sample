@@ -23,14 +23,15 @@ public class TweetController : ControllerBase
 	{
 		if (!string.IsNullOrEmpty(l2tTweet.Text))
 		{
+			Console.WriteLine($"\n***** AuthorId (1): {l2tTweet.AuthorId}\n");
+
 			OAuth2Authorizer auth = OAuth2Helper.Authorizer(l2tTweet.AccessToken!, l2tTweet.RefreshToken!);
 			TwitterContext twitterCtx = new TwitterContext(auth); // #TODO Try/Catch
-			Tweet? tweet = new();
 
 			try
 			{
-				tweet = await twitterCtx.TweetAsync(l2tTweet.Text);
-				l2tTweet.TweetId = tweet?.ID!;
+				Tweet? tweet = await twitterCtx.TweetAsync(l2tTweet.Text);
+				l2tTweet.TweetId = tweet?.ID;
 			}
 			catch (Exception e)
 			{

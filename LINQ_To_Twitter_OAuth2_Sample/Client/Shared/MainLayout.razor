@@ -1,6 +1,10 @@
-﻿@inherits LayoutComponentBase
-@inject Blazored.LocalStorage.ILocalStorageService localStorage
+﻿@using System.Timers
+@using LINQ_To_Twitter_OAuth2_Sample.Client.Services
+@inherits LayoutComponentBase
 @inject HttpClient Http
+@inject Blazored.LocalStorage.ISyncLocalStorageService localStorage
+@inject AppDataService appDataService
+@implements IDisposable
 
 <div class="page">
     <div class="sidebar">
@@ -13,7 +17,133 @@
         </div>
 
         <article class="content px-4">
-            @Body
+            @if (!tokenExpired)
+            {
+                @Body
+            }
         </article>
     </main>
 </div>
+
+@code {
+    private L2TBase? l2tBase;
+    private Timer? timer;
+    bool tokenExpired = false;
+
+    //protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
+    {
+        Console.WriteLine($"***** MainLayout OnInitialized");
+        l2tBase = localStorage.GetItem<L2TBase>("l2t_base");
+        if (l2tBase is not null &&
+            !string.IsNullOrEmpty(l2tBase.AccessToken) &&
+            !string.IsNullOrEmpty(l2tBase.RefreshToken))  // Returning app authorized user
+        {
+            Console.WriteLine($"***** MainLayout OnInitialized - (1/2) Returning app authorized user, l2tBase.UserId: {l2tBase.UserId}");
+            appDataService.AccessToken = l2tBase.AccessToken;
+            appDataService.RefreshToken = l2tBase.RefreshToken;
+            appDataService.ExpireTokenTicks = l2tBase.ExpireTokenTicks;
+            appDataService.UserId = l2tBase.UserId;
+            appDataService.Name = l2tBase.Name;
+
+            // check if token has expired for returning user
+            long ticksLeft = appDataService.ExpireTokenTicks - DateTime.UtcNow.Ticks;
+            TimeSpan expires = new TimeSpan(ticksLeft);
+            if (expires.TotalMinutes < 5)
+            {
+                Console.WriteLine($"***** MainLayout OnInitialized - Token has expired for returning app user");
+                tokenExpired = true;
+                await RefreshToken(); // with async 'await', for returing user with expired token TL (Index.razor) doesn't load. #TODO TEST!
+            }
+            else
+                Console.WriteLine($"***** MainLayout OnInitialized - Token has not expired");
+        }
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            if (l2tBase is null && appDataService.UserId != "0") // Twitter authorized user returns from Callback.razor
+            {
+                Console.WriteLine($"***** MainLayout OnAfterRender First Render - Twitter authorized user returns from Callback.razor, appDataService.UserId = {appDataService.UserId}");
+                L2TBase l2tBase = new()
+                    {
+                        AccessToken = appDataService.AccessToken,
+                        RefreshToken = appDataService.RefreshToken,
+                        ExpireTokenTicks = appDataService.ExpireTokenTicks,
+                        UserId = appDataService.UserId,
+                        Name = appDataService.Name
+                    };
+                localStorage.SetItem<L2TBase>("l2t_base", l2tBase);
+            }
+            else if (appDataService.UserId != "0")
+                Console.WriteLine($"***** MainLayout OnAfterRender First Render - (2/2) Returning app user appDataService.UserId: {appDataService.UserId}");
+            else
+                Console.WriteLine($"***** MainLayout OnAfterRender First Render - Unauthorized user, appDataService.UserId = {appDataService.UserId}");
+
+            // always at first render
+            if (timer is null)
+            {
+                Console.WriteLine($"***** MainLayout OnAfterRender First Render - StartTimer: {DateTime.UtcNow.ToLocalTime()}");
+                timer = new Timer(1000 * 5 * 1); // every 1 minute
+                timer.Elapsed += (sender, eventArgs) => OnTimerCallback();
+                timer.Enabled = true;
+                timer.Start();
+            }
+            else
+                Console.WriteLine("***** MainLayout OnAfterRender First Render - timer is not null, should not happen");
+        }
+        else
+            Console.WriteLine("***** MainLayout OnAfterRender *NOT* First Render");
+    }
+
+    private void OnTimerCallback() // for expired token
+    {
+        _ = InvokeAsync(async () =>
+        {
+            if (appDataService.UserId != "0")
+            {
+                // #TODO CHECK TICKS LEFT, if someone edited localstorage, delete localstorage
+
+                long ticksLeft = appDataService.ExpireTokenTicks - DateTime.UtcNow.Ticks; // check appDataService.ExpireTokenTicks
+                TimeSpan expires = new TimeSpan(ticksLeft);
+
+                Console.WriteLine($"***** MainLayout OnTimerCallback - appDataService.UserId = {appDataService.UserId}, Expires in {(int)expires.TotalMinutes} minutes");
+
+                if (expires.TotalMinutes < 5)
+                    await RefreshToken();
+            }
+            else
+                Console.WriteLine($"***** MainLayout OnTimerCallback - appDataService.UserId: {appDataService.UserId}");
+        });
+    }
+
+    public async Task RefreshToken()
+    {
+        HttpResponseMessage? responseMessage = await Http.PostAsJsonAsync("OAuth2/RefreshToken", l2tBase);
+        if (responseMessage is not null)
+        {
+            L2TRefreshResponse? refreshResponse = await responseMessage.Content.ReadFromJsonAsync<L2TRefreshResponse>();
+            if (refreshResponse is not null)
+            {
+                l2tBase!.AccessToken = refreshResponse.access_token;
+                l2tBase.RefreshToken = refreshResponse.refresh_token;
+                l2tBase.ExpireTokenTicks = DateTime.UtcNow.AddSeconds(refreshResponse.expires_in).Ticks;
+                localStorage.SetItem<L2TBase>("l2t_base", l2tBase);
+
+                appDataService.AccessToken = l2tBase.AccessToken;
+                appDataService.RefreshToken = l2tBase.RefreshToken;
+                appDataService.ExpireTokenTicks = l2tBase.ExpireTokenTicks;
+
+                tokenExpired = false;
+
+                Console.WriteLine($"***** MainLayout RefreshToken - New Token");
+            }
+        }
+        else
+            Console.WriteLine($"***** MainLayout RefreshToken - No New Token, refreshResponse is null = ERROR");
+    }
+
+    public void Dispose() => timer?.Dispose();
+}
