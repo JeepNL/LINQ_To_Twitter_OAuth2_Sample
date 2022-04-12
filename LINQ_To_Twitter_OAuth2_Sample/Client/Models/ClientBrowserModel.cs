@@ -1,5 +1,6 @@
 ﻿namespace LINQ_To_Twitter_OAuth2_Sample.Client.Models
 {
+	// Flatten JSON response from server
 	public class BrowserTweet
 	{
 		public bool isRetweet { get; set; } = false;

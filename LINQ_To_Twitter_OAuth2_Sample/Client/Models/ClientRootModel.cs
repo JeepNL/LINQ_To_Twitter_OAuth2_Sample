@@ -2,8 +2,9 @@
 
 namespace LINQ_To_Twitter_OAuth2_Sample.Client.Models;
 
-// The servers sends the complete JSON response, thats why these records are needed on the client
-// Work in progress
+// The servers sends the complete L2T JSON response to the client,
+// thats why these records are needed on the client to deserialize the JSON response.
+// Work in progress, ie: 'object'
 
 public record ClientAttachments
 (

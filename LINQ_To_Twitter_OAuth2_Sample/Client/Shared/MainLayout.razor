@@ -53,7 +53,7 @@
             {
                 Console.WriteLine($"***** MainLayout OnInitialized - Token has expired for returning app user");
                 tokenExpired = true;
-                await RefreshToken(); // with async 'await', for returing user with expired token TL (Index.razor) doesn't load. #TODO TEST!
+                await RefreshToken();
             }
             else
                 Console.WriteLine($"***** MainLayout OnInitialized - Token has not expired");
