@@ -2,7 +2,7 @@
 
 [Joe Mayo](https://github.com/JoeMayo)'s Linq To Twitter [OAuth2 blog post](https://joemayo.medium.com/using-oauth-2-0-with-linq-to-twitter-eac6d9035084)
 
-![Screenshot](img/lt2oauth2.png)
+![Screenshot](img/lt2oauth2a.png)
 
 For this sample to work you'll need to add the file `/Server/twitterkeys.ini` which is called in `/Server/Program.cs` *(line 5-13)* and sets the `TwitterClientID` & `TwitterClientSecret` enviroment variables.
 
@@ -21,8 +21,12 @@ Also at [developer.twitter.com](https://developer.twitter.com/) set your 'User a
 
   * Client:
     * [Client/LINQ_To_Twitter_OAuth2_Sample.Client.csproj](LINQ_To_Twitter_OAuth2_Sample/Client/LINQ_To_Twitter_OAuth2_Sample.Client.csproj)
+    * [Client/Program.cs](LINQ_To_Twitter_OAuth2_Sample/Client/Program.cs)
     * [Client/Pages/Index.razor](LINQ_To_Twitter_OAuth2_Sample/Client/Pages/Index.razor)
     * [Client/Pages/Callback.razor](LINQ_To_Twitter_OAuth2_Sample/Client/Pages/Callback.razor)
+    * [Client/Shared/MainLayout.razor](LINQ_To_Twitter_OAuth2_Sample/Client/Shared/MainLayout.razor)
+    * [Client/Models/ClientBrowserModel.cs](LINQ_To_Twitter_OAuth2_Sample/Client/Models/ClientBrowserModel.cs)
+    * [Client/Models/ClientRootModel.cs](LINQ_To_Twitter_OAuth2_Sample/Client/Models/ClientRootModel.cs)
 
   * Server:
     * [Client/LINQ_To_Twitter_OAuth2_Sample.Server.csproj](LINQ_To_Twitter_OAuth2_Sample/Server/LINQ_To_Twitter_OAuth2_Sample.Server.csproj)
@@ -36,11 +40,10 @@ Also at [developer.twitter.com](https://developer.twitter.com/) set your 'User a
     * [Shared/LINQ_To_Twitter_OAuth2_Sample.Shared.csproj](LINQ_To_Twitter_OAuth2_Sample/Shared/LINQ_To_Twitter_OAuth2_Sample.Shared.csproj)
     * [Shared/Models/L2TBase.cs](LINQ_To_Twitter_OAuth2_Sample/Shared/Models/L2TBase.cs)
     * [Shared/Models/L2TTimelineRequest.cs](LINQ_To_Twitter_OAuth2_Sample/Shared/Models/L2TTimelineRequest.cs)
-    * [Shared/Models/L2TTimelineResponse.cs](LINQ_To_Twitter_OAuth2_Sample/Shared/Models/L2TTimelineResponse.cs)
 	
---
+---
 
-**Joe Mayo's LINQ to Twitter ASP.NET 6 OAuth2 GitHub Examples:**
+### Joe Mayo's LINQ to Twitter ASP.NET 6 OAuth2 GitHub Examples ###
 
  * [MVC](https://github.com/JoeMayo/LinqToTwitter/tree/main/Samples/LinqToTwitter6/ASP.NET/LinqToTwitter.MVC.CSharp)
  * [Console](https://github.com/JoeMayo/LinqToTwitter/tree/main/Samples/LinqToTwitter6/Console/ConsoleDemo.CSharp)
