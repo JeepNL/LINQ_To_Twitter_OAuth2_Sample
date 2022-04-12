@@ -3,8 +3,8 @@
 	// Flatten JSON response from server
 	public class BrowserTweet
 	{
-		public bool isRetweet { get; set; } = false;
-		public bool isNewTweet { get; set; } = false;
+		public bool IsRetweet { get; set; } = false;
+		public bool IsNewTweet { get; set; } = false;
 		public string? TweetId { get; set; }
 		public string? AuthorId { get; set; }
 		public string? AuthorProfileImage { get; set; }

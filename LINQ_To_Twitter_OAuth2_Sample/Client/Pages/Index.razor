@@ -53,7 +53,7 @@
                         <div class="col-md-11">
                             <div class="card-header py-0">
                                 <b>@tweet.Name</b> (<a href="https://twitter.com/@tweet.UserName" target="_blank"><i>@@@tweet.UserName</i>)</a>
-                                @if (tweet.isRetweet)
+                                @if (tweet.IsRetweet)
                                 {
                                     <small><mark>&nbsp;<b>Retweet</b>&nbsp;</mark></small>
                                 }
@@ -89,12 +89,12 @@
                             <div class="card-footer pl-4 py-0">
                                 <small class="text-muted">
                                     @{
-                                        if (!tweet.isRetweet)
+                                        if (!tweet.IsRetweet)
                                         {
                                             <a href="#" @onclick="(() => DeleteTweet(tweet))"><span class="oi oi-trash link-danger" aria-hidden="true" /></a>
                                         }
 
-                                        if (!tweet.isNewTweet)
+                                        if (!tweet.IsNewTweet)
                                         {
                                             <span>@tweet.CreatedAt.ToLocalTime() - Via: @tweet.Source</span>
                                         }
@@ -230,7 +230,7 @@
                         ClientTweet? retweetedTweet = clientRootResponse.Includes?.Tweets?.Where(t => t.Id == retweetId).SingleOrDefault();
 
                         feTweet.TweetId = retweetedTweet?.Id;
-                        feTweet.isRetweet = true;
+                        feTweet.IsRetweet = true;
                         feTweet.Text = retweetedTweet?.Text;
                         feTweet.Source = retweetedTweet?.Source;
                         feTweet.CreatedAt = retweetedTweet!.CreatedAt;
@@ -319,7 +319,7 @@
                     TweetId = l2tTweet?.TweetId,
                     Text = l2tTweet?.Text,
                     Name = l2tTweet?.Name,
-                    isNewTweet = true, // #TODO, needs more work/fields (username, userprofileimage, createdat etc.)
+                    IsNewTweet = true, // #TODO, needs more work/fields (username, userprofileimage, createdat etc.)
                 };
             browserTweets?.Insert(0, insertTweetAtTop);
 
