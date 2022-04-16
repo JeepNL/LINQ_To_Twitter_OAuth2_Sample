@@ -1,5 +1,6 @@
 ﻿using LINQ_To_Twitter_OAuth2_Sample.Shared.Models;
 using LinqToTwitter;
+using LinqToTwitter.Common;
 using LinqToTwitter.OAuth;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
@@ -26,28 +27,31 @@ public class OAuth2Controller : ControllerBase
 	{
 		string twitterCallbackUrl = Request.GetDisplayUrl().Replace("Begin", "Complete");
 
-		MvcOAuth2Authorizer auth = new MvcOAuth2Authorizer()
+		MvcOAuth2Authorizer auth = new()
 		{
 			CredentialStore = new OAuth2SessionCredentialStore(HttpContext.Session)
 			{
 				ClientID = _configuration["TwitterClientID"],
 				ClientSecret = _configuration["TwitterClientSecret"],
+				// Scopes see: https://developer.twitter.com/en/docs/authentication/oauth-2-0/authorization-code
 				Scopes = new List<string>
 				{
 					"tweet.read",
 					"tweet.write",
-					"tweet.moderate.write",
+					"tweet.moderate.write", // Hide and unhide replies to your Tweets.
 					"users.read",
 					"follows.read",
-					//"follows.write",
+					"follows.write",
 					"offline.access", // needed for the 'Refresh Token' - Important
-					//"space.read",
+					"space.read",
 					"mute.read",
-					//"mute.write",
-					"like.read",
-					//"like.write",
+					"mute.write",
+					"like.read", // Favorites
+					"like.write",
 					"block.read",
-					//"block.write"
+					"block.write",
+					//"bookmark.read", // not yet implemented in L2T?
+					//"bookmark.write", // not yet implemented in L2T?
 				},
 				RedirectUri = twitterCallbackUrl,
 			}
@@ -64,7 +68,7 @@ public class OAuth2Controller : ControllerBase
 		Request.Query.TryGetValue("state", out StringValues state);
 
 		if (error.ToString() == "access_denied") // access cancelled at Twitter
-			return Redirect("/l2tcallback?access_denied=true");
+			return Redirect("/l2tcallback?AccessDenied=true");
 
 		OAuth2Authorizer? auth = new()
 		{
@@ -76,27 +80,38 @@ public class OAuth2Controller : ControllerBase
 		IOAuth2CredentialStore? credentials = auth.CredentialStore as IOAuth2CredentialStore;
 
 		// Get 'Me' User(Id)
-		TwitterContext twitterCtx = new TwitterContext(auth);
+		TwitterContext twitterCtx = new(auth);
 		TwitterUserQuery? response = await (
 			from usr in twitterCtx.TwitterUser
 			where usr.Type == UserType.Me
+				&& usr.Expansions == $"{ExpansionField.AllUserFields}"
+				&& usr.UserFields == $"{UserField.AllFields}"
 			select usr
 		).SingleOrDefaultAsync();
 
 		TwitterUser? user = response?.Users?.SingleOrDefault();
 
-		string url = $"/l2tcallback?access_token={credentials?.AccessToken}&" +
-					 $"refresh_token={credentials?.RefreshToken}&" +
-					 $"expire_token_ticks={DateTime.UtcNow.AddMinutes(120).Ticks}&" +
-					 $"user_id={user?.ID}&" +
-					 $"name={HttpUtility.UrlEncode(user?.Name)}&" +
-					 $"access_denied=false";
+		string url = $"/l2tcallback?AccessToken={credentials?.AccessToken}&" +
+					 $"RefreshToken={credentials?.RefreshToken}&" +
+					 $"ExpireTokenTicks={DateTime.UtcNow.AddMinutes(120).Ticks}&" +
+					 $"UserId={user?.ID}&" +
+					 $"Name={HttpUtility.UrlEncode(user?.Name)}&" +
+					 $"UserName={HttpUtility.UrlEncode(user?.Username)}&" +
+					 $"ProfileImageUrl={HttpUtility.UrlEncode(user?.ProfileImageUrl)}&" +
+					 $"FollowersCount={user?.PublicMetrics?.FollowersCount}&" +
+					 $"FollowingCount={user?.PublicMetrics?.FollowingCount}&" +
+					 $"TweetCount={user?.PublicMetrics?.TweetCount}&" +
+					 $"CreatedAtTicks={user?.CreatedAt.Ticks}&" +
+					 $"PrivateAccount={user?.Protected}&" +
+					 $"VerifiedAccount={user?.Verified}&" +
+					 $"AccessDenied=false";
 
 		return Redirect(url);
 	}
 
 	[HttpPost]
-	public async Task<string> RefreshToken(L2TBase l2tBase)
+
+	public async Task<ActionResult<string>> RefreshToken(L2TBase l2tBase)
 	{
 		OAuth2Authorizer auth = new()
 		{
@@ -108,7 +123,19 @@ public class OAuth2Controller : ControllerBase
 			}
 		};
 
-		return await auth.RefreshTokenAsync();
+		string? authString = await auth.RefreshTokenAsync();
+
+		Console.WriteLine($"\n***** authString: {authString}\n");
+
+		//// #TODO User may have changed his UserName, Handle (Name) and/or ProfileImage, new call to 👇
+		//TwitterContext twitterCtx = new(auth);
+		//TwitterUserQuery? response = await (
+		//	from usr in twitterCtx.TwitterUser
+		//	where usr.Type == UserType.Me
+		//	select usr
+		//).SingleOrDefaultAsync();
+
+		return Ok(authString);
 	}
 
 	[HttpPost]

@@ -4,25 +4,49 @@
 @inject NavigationManager NavMan
 
 @code {
-    [Parameter][SupplyParameterFromQuery] public string? access_token { get; set; }
-    [Parameter][SupplyParameterFromQuery] public string? refresh_token { get; set; }
-    [Parameter][SupplyParameterFromQuery] public long expire_token_ticks { get; set; }
-    [Parameter][SupplyParameterFromQuery] public string? user_id { get; set; }
-    [Parameter][SupplyParameterFromQuery] public string? name { get; set; }
-    [Parameter][SupplyParameterFromQuery] public bool access_denied { get; set; }
+    [Parameter][SupplyParameterFromQuery] public string? AccessToken { get; set; }
+    [Parameter][SupplyParameterFromQuery] public string? RefreshToken { get; set; }
+    [Parameter][SupplyParameterFromQuery] public long ExpireTokenTicks { get; set; }
+    [Parameter][SupplyParameterFromQuery] public string? UserId { get; set; }
+    [Parameter][SupplyParameterFromQuery] public string? Name { get; set; }
+    [Parameter][SupplyParameterFromQuery] public string? UserName { get; set; }
+    [Parameter][SupplyParameterFromQuery] public string? ProfileImageUrl { get; set; }
+    [Parameter][SupplyParameterFromQuery] public long FollowersCount { get; set; }
+    [Parameter][SupplyParameterFromQuery] public long FollowingCount { get; set; }
+    [Parameter][SupplyParameterFromQuery] public long TweetCount { get; set; }
+    [Parameter][SupplyParameterFromQuery] public long CreatedAtTicks { get; set; }
+    [Parameter][SupplyParameterFromQuery] public bool PrivateAccount { get; set; }
+    [Parameter][SupplyParameterFromQuery] public bool VerifiedAccount { get; set; }
+    [Parameter][SupplyParameterFromQuery] public bool AccessDenied { get; set; }
 
     protected override void OnInitialized()
     {
-        if (!access_denied)
+        if (!AccessDenied
+            && !string.IsNullOrEmpty(AccessToken)
+            && !string.IsNullOrEmpty(RefreshToken)
+            && ExpireTokenTicks > 0
+            && !string.IsNullOrEmpty(UserId)
+            && !string.IsNullOrEmpty(Name)
+            && !string.IsNullOrEmpty(UserName)
+            && !string.IsNullOrEmpty(ProfileImageUrl)
+            && CreatedAtTicks > 0)
         {
-            appDataService.AccessToken = access_token;
-            appDataService.RefreshToken = refresh_token;
-            appDataService.ExpireTokenTicks = expire_token_ticks;
-            appDataService.UserId = user_id;
-            appDataService.Name = name;
+            appDataService.AccessToken = AccessToken;
+            appDataService.RefreshToken = RefreshToken;
+            appDataService.ExpireTokenTicks = ExpireTokenTicks;
+            appDataService.UserId = UserId;
+            appDataService.Name = Name;
+            appDataService.UserName = UserName;
+            appDataService.ProfileImageUrl = ProfileImageUrl;
+            appDataService.FollowersCount = FollowersCount;
+            appDataService.FollowingCount = FollowingCount;
+            appDataService.TweetCount = TweetCount;
+            appDataService.CreatedAtTicks = CreatedAtTicks;
+            appDataService.PrivateAccount = PrivateAccount;
+            appDataService.VerifiedAccount = VerifiedAccount;
         }
 
-        Console.WriteLine($"***** Callback.razor OnInitializedAsync");
+        //Console.WriteLine($"***** Callback.razor OnInitializedAsync");
 
         NavMan.NavigateTo("/");
     }

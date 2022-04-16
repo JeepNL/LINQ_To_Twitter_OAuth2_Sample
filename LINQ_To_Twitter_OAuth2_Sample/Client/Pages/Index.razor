@@ -35,6 +35,19 @@
         </EditForm>
 
         <div class="mt-2">
+            <label>
+                Upload up to @maxAllowedFiles (jpg/png) images of up to @((int)maxFileSize/(1024*1024)) MB:
+                <InputFile OnChange="@LoadMedia" multiple accept=".png,.jpg,.jpeg" />
+            </label>
+
+            @if (l2tTweet?.ImagesB64 is not null)
+                foreach (var img in l2tTweet.ImagesB64)
+                {
+                    <img src="data:image/@img.Format!.Replace("jpg", "jpeg");base64,@img.Data" style="border:double" />
+                }
+        </div>
+
+        <div class="mt-2">
             @if (l2tTweet?.TweetId == "-1") // error
             {
                 <small class="text-danger">Tweet Error: @l2tTweet?.ErrorMessage</small>
@@ -129,16 +142,46 @@
     private List<BrowserTweet>? browserTweets = new(); // new List for this Browser Page, to add, delete etc.
     private string tweetText = string.Empty;
     private bool loading = false;
+    private long maxFileSize = 1024 * 1024 * 5; // 5MB
+    private int maxAllowedFiles = 4;
 
     private Regex regexAt = new Regex(@"(?<=^|(?<=[^a-zA-Z0-9-_\\.]))@([A-Za-z_]+[A-Za-z0-9_]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private Regex regexHash = new Regex(@"(?<=^|(?<=[^a-zA-Z0-9\\.]))#([A-Za-z]+[A-Za-z0-9]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     //private Regex regexUrl = new Regex(@"", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
 
     protected override async Task OnParametersSetAsync()
     {
         Console.WriteLine($"***** Index OnParametersSetAsync - appDataService.UserId: {appDataService.UserId}");
         if (appDataService.UserId != "0") // if "0" not authorized
             await UserTimeline();
+    }
+
+    private async Task LoadMedia(InputFileChangeEventArgs mediaFiles)
+    {
+        //if (l2tTweet is not null)
+        //{
+        //l2tTweet!.ImagesB64?.Clear(); // what am I doing here?
+        //l2tTweet.ImagesB64 = null; // ditto :)
+        l2tTweet!.ImagesB64 = new List<ImageB64>();
+        //}
+
+        foreach (var imgFile in mediaFiles.GetMultipleFiles(maxAllowedFiles))
+            try
+            {
+                // #TODO check file size
+                var buffer = new byte[imgFile.Size];
+                await imgFile.OpenReadStream().ReadAsync(buffer);
+                l2tTweet?.ImagesB64?.Add(new ImageB64
+                    {
+                        FileName = imgFile.Name,
+                        Data = Convert.ToBase64String(buffer),
+                        //Format = $"data:image/{imgFile.Name!.Split('.').Last().Replace("jpg", "jpeg")};base64"
+                        //Format = $"{imgFile.Name!.Split('.').Last().Replace("jpg", "jpeg")}"
+                        Format = $"{imgFile.Name!.Split('.').Last()}"
+                    });
+            }
+            catch (Exception ex) { Console.WriteLine($"***** Oops! - File: {imgFile.Name} Error: {ex.Message}"); }
     }
 
     private void TwitterOAuth2()
@@ -159,7 +202,7 @@
     //    l2tBase.AccessToken = string.Empty;
     //    l2tBase.RefreshToken = string.Empty;
     //    l2tBase.ExpireTokenTicks = 0;
-    //    await localStorage.SetItemAsync<L2TBase>("l2t_base", l2tBase);
+    //    await localStorage.SetItemAsync<L2TBase> ("l2t_base", l2tBase);
     //}
 
     private async Task UserTimeline()
@@ -171,14 +214,15 @@
         l2tTimelineRequest.RefreshToken = appDataService.RefreshToken;
         //l2TTimelineRequest.ForUserId = "16761255"; // Linq2Twitr
         l2tTimelineRequest.ForUserId = appDataService.UserId!;
-        l2tTimelineRequest.ForScreenName = ""; // #TODO
+        l2tTimelineRequest.ForUserName = ""; // #TODO
         l2tTimelineRequest.Filter = ""; // #TODO
         l2tTimelineRequest.MaxResults = 25;
 
         HttpResponseMessage? responseMessage = await Http.PostAsJsonAsync("TL/UserTimeline", l2tTimelineRequest);
         if (responseMessage.IsSuccessStatusCode)
         {
-            ClientRootResponse? clientRootResponse = await responseMessage.Content.ReadFromJsonAsync<ClientRootResponse>();
+            ClientRootResponse? clientRootResponse = await responseMessage.Content.ReadFromJsonAsync<ClientRootResponse>
+                ();
             if (clientRootResponse?.Data is not null)
                 foreach (var tweet in clientRootResponse.Data)
                 {
@@ -205,7 +249,8 @@
 
                         if (tweet?.Attachments?.MediaKeys is not null)
                         {
-                            List<BrowserTweetMedia> tweetMedias = new();
+                            List<BrowserTweetMedia>
+                                tweetMedias = new();
                             foreach (var mediaKey in tweet.Attachments.MediaKeys!)
                             {
                                 ClientMedia? media = clientRootResponse.Includes?.Medias?.Where(m => m.MediaKey == mediaKey).SingleOrDefault();
@@ -252,11 +297,11 @@
                 Console.WriteLine($"***** l2tRootResponse?.Data IS NULL");
 
             // local function
-            string fullText(IEnumerable<ClientUrl> urls, string tweetText = "")
+            string fullText(IEnumerable<ClientUrl>
+                urls, string tweetText = "")
             {
                 foreach (var url in urls)
                     tweetText = tweetText.Replace(url.TwitterUrl!, $"<a href=\"{url.ExpandedUrl}\">{url.DisplayUrl}</a>");
-
                 return tweetText;
             }
         }
@@ -267,8 +312,8 @@
     public string TweetParser(string tweetText) // #TODO #INPROGRESS
     {
         //@ and #
-        tweetText = regexAt.Replace(tweetText, @"<a href=""https://twitter.com/"" target=""_blank""></a>");
-        tweetText = regexHash.Replace(tweetText, @"<a href=""https://twitter.com/search?q="" target=""_blank""></a>");
+        tweetText = regexAt.Replace(tweetText, @"<a href=""https://twitter.com/$0"" target=""_blank"">$0</a>");
+        tweetText = regexHash.Replace(tweetText, @"<a href=""https://twitter.com/search?q=$0"" target=""_blank"">$0</a>");
 
         // https://twitter.com/search?q=%23hash
         // https://twitter.com/hashtag/Test2
@@ -283,8 +328,8 @@
         {
             L2TTweet? deleteTweet = new()
                 {
-                    Text = tweet.Text, // required field: L2TTweet.cs
-                    TweetId = tweet.TweetId,
+                    Text = tweet.Text!, // required field: L2TTweet.cs
+                    TweetId = tweet.TweetId!,
                     AuthorId = tweet.AuthorId,
                     AccessToken = appDataService.AccessToken,
                     RefreshToken = appDataService.RefreshToken,
@@ -309,7 +354,8 @@
 
         HttpResponseMessage? responseMessage = await Http.PostAsJsonAsync("Tweet/Post", l2tTweet);
         // #TODO GET NEW ID & ADD TO LOCAL BROWSERTWEETS LIST IF OK RESPONSE
-        l2tTweet = await responseMessage.Content.ReadFromJsonAsync<L2TTweet>(); // l2tTweet is never null
+        l2tTweet = await responseMessage.Content.ReadFromJsonAsync<L2TTweet>
+            (); // l2tTweet is never null
 
         if (responseMessage.IsSuccessStatusCode)
         {
@@ -349,4 +395,4 @@
     //Console.WriteLine("\n");
     //Console.WriteLine($"***** : {}");
     //Console.WriteLine("\n");
-}
+                    }
