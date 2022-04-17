@@ -3,7 +3,6 @@ using LINQ_To_Twitter_OAuth2_Sample.Shared.Models;
 using LinqToTwitter;
 using LinqToTwitter.OAuth;
 using Microsoft.AspNetCore.Mvc;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace LINQ_To_Twitter_OAuth2_Sample.Server.Controllers;
 
@@ -30,7 +29,7 @@ public class TweetController : ControllerBase
 		OAuth2Authorizer auth = OAuth2Helper.Authorizer(l2tTweet.AccessToken, l2tTweet.RefreshToken);
 		TwitterContext twitterCtx = new TwitterContext(auth);
 
-		Tweet? tweet;
+		Tweet? tweet = new();
 		string mediaCategory = "tweet_image";
 
 		if (l2tTweet.ImagesB64 is not null)
@@ -61,9 +60,10 @@ public class TweetController : ControllerBase
 					return BadRequest("Problem uploading media.");
 				}
 
-				Tweet? twt = await twitterCtx.TweetMediaAsync(l2tTweet.Text, new List<string> { media.MediaID.ToString() });
+				tweet = await twitterCtx.TweetMediaAsync(l2tTweet.Text, new List<string> { media.MediaID.ToString() });
+				//Tweet? twt = await twitterCtx.TweetMediaAsync(l2tTweet.Text, new List<string> { media.MediaID.ToString() });
 
-				if (twt != null)
+				if (tweet != null)
 					Console.WriteLine("Tweet sent");
 				else
 					Console.WriteLine("Tweet not sent");
@@ -112,7 +112,7 @@ public class TweetController : ControllerBase
 			}
 		}
 
-		//l2tTweet.TweetId = tweet?.ID!;
+		l2tTweet.TweetId = tweet?.ID;
 		return Ok(l2tTweet);
 	}
 

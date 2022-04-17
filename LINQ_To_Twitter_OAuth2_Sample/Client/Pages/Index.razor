@@ -72,9 +72,9 @@
                                 }
 
                             </div>
-                            <div class="card-body py-2">
-                                <p class="card-text py-0">@((MarkupString)TweetParser(tweet.Text ?? ""))</p>
-                                <div class="container">
+                            <div class="card-body pt-3 pb-0">
+                                <p class="card-text">@((MarkupString)(tweet.Text ?? ""))</p>
+                                <div class="container mb-3">
                                     @*#TODO ONLY 2 COLS if Type = Photo*@
                                     <div class="row row-cols-2">
                                         @if (tweet.MediaList is not null)
@@ -109,7 +109,7 @@
 
                                         if (!tweet.IsNewTweet)
                                         {
-                                            <span>@tweet.CreatedAt.ToLocalTime() - Via: @tweet.Source</span>
+                                            <span><a href="https://twitter.com/i/web/status/@tweet.TweetId" target="_blank">@tweet.CreatedAt.ToLocalTime()</a> - Via: <a href="https://help.twitter.com/en/using-twitter/how-to-tweet#source-labels" target="_blank">@tweet.Source</a></span>
                                         }
                                     }
                                 </small>
@@ -145,10 +145,9 @@
     private long maxFileSize = 1024 * 1024 * 5; // 5MB
     private int maxAllowedFiles = 4;
 
-    private Regex regexAt = new Regex(@"(?<=^|(?<=[^a-zA-Z0-9-_\\.]))@([A-Za-z_]+[A-Za-z0-9_]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private Regex regexHash = new Regex(@"(?<=^|(?<=[^a-zA-Z0-9\\.]))#([A-Za-z]+[A-Za-z0-9]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    //private Regex regexAt = new Regex(@"(?<=^|(?<=[^a-zA-Z0-9-_\\.]))@([A-Za-z0-9_]+[A-Za-z0-9_]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    //private Regex regexHash = new Regex(@"(?<=^|(?<=[^a-zA-Z0-9\\.]))#([A-Za-z0-9]+[A-Za-z0-9]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     //private Regex regexUrl = new Regex(@"", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
 
     protected override async Task OnParametersSetAsync()
     {
@@ -233,6 +232,7 @@
                     if (retweetId is null)
                     {
                         feTweet.TweetId = tweet.Id;
+                        //feTweet.IsRetweet = false;  // default
                         feTweet.Text = tweet?.Text;
                         feTweet.Source = tweet?.Source;
                         feTweet.CreatedAt = tweet!.CreatedAt;
@@ -245,12 +245,15 @@
                         feTweet.ProfileImageUrl = tweetUser?.ProfileImageUrl;
 
                         if (tweet?.Entities?.Urls is not null)
-                            feTweet.Text = fullText(tweet.Entities.Urls, tweet.Text ?? ""); // no text, image only (for example)
+                            feTweet.Text = replaceUrls(tweet.Entities.Urls, tweet.Text!);
+                        if (tweet?.Entities?.Hashtags is not null)
+                            feTweet.Text = replaceHashTags(tweet.Entities.Hashtags, feTweet.Text!);
+                        if (tweet?.Entities?.Mentions is not null)
+                            feTweet.Text = replaceMentions(tweet.Entities.Mentions, feTweet.Text!);
 
                         if (tweet?.Attachments?.MediaKeys is not null)
                         {
-                            List<BrowserTweetMedia>
-                                tweetMedias = new();
+                            List<BrowserTweetMedia> tweetMedias = new();
                             foreach (var mediaKey in tweet.Attachments.MediaKeys!)
                             {
                                 ClientMedia? media = clientRootResponse.Includes?.Medias?.Where(m => m.MediaKey == mediaKey).SingleOrDefault();
@@ -287,40 +290,72 @@
                         feTweet.UserName = retweetedUser?.Username;
                         feTweet.ProfileImageUrl = retweetedUser?.ProfileImageUrl;
 
+                        // #TODO Retweet Attachments / ReferencedTweets
+                        //if (retweetedTweet?.ReferencedTweets is not null)
+
                         if (retweetedTweet?.Entities?.Urls is not null)
-                            feTweet.Text = fullText(retweetedTweet.Entities.Urls, feTweet.Text ?? ""); // no text, image only (for example)
+                            feTweet.Text = replaceUrls(retweetedTweet.Entities.Urls, feTweet.Text ?? ""); // #TODO ? ??
+                        if (retweetedTweet?.Entities?.Hashtags is not null)
+                            feTweet.Text = replaceHashTags(retweetedTweet.Entities.Hashtags, feTweet.Text!);
+                        if (retweetedTweet?.Entities?.Mentions is not null)
+                            feTweet.Text = replaceMentions(retweetedTweet.Entities.Mentions, feTweet.Text!);
                     }
 
+                    feTweet.Text = parseTextFurther(feTweet.Text ?? ""); // no text, image only (for example)
                     browserTweets?.Add(feTweet!);
                 }
             else
                 Console.WriteLine($"***** l2tRootResponse?.Data IS NULL");
 
-            // local function
-            string fullText(IEnumerable<ClientUrl>
-                urls, string tweetText = "")
+            // local functions
+            string replaceUrls(IEnumerable<ClientUrl> urls, string tweetText = "")
             {
                 foreach (var url in urls)
-                    tweetText = tweetText.Replace(url.TwitterUrl!, $"<a href=\"{url.ExpandedUrl}\">{url.DisplayUrl}</a>");
+                    if (url.DisplayUrl!.StartsWith("pic.twitter.com"))
+                        tweetText = tweetText.Replace(url.TwitterUrl!, string.Empty); // don't display attached images url
+                    else
+                        tweetText = tweetText.Replace(url.TwitterUrl!, $"<a href=\"{url.ExpandedUrl}\" target=\"_blank\">{url.DisplayUrl}</a>");
                 return tweetText;
-            }
+            };
+
+            string replaceHashTags(IEnumerable<ClientHashtag> hashtags, string tweetText = "")
+            {
+                foreach (var hashtag in hashtags)
+                    tweetText = tweetText.Replace($"#{hashtag.Tag}", $"<a href=\"https://twitter.com/hashtag/{hashtag.Tag}\" target=\"_blank\">#{hashtag.Tag}</a>");
+                return tweetText;
+            };
+
+            string replaceMentions(IEnumerable<ClientMention> mentions, string tweetText = "")
+            {
+                foreach (var mention in mentions)
+                    tweetText = tweetText.Replace($"@{mention.Username}", $"<a href='https://twitter.com/{mention.Username}' target=\"_blank\">@{mention.Username}</a>");
+                return tweetText;
+            };
+
+            string parseTextFurther(string tweetText)
+            {
+                tweetText = tweetText.Replace("\n\n", @"<div class=""mt-2""></div>");
+                tweetText = tweetText.Replace("\n", @"<br />");
+                tweetText = tweetText.Replace("  ", "&nbsp;&nbsp;"); // two spaces
+                return tweetText;
+            };
         }
         loading = false;
     }
 
     // utilities
-    public string TweetParser(string tweetText) // #TODO #INPROGRESS
-    {
-        //@ and #
-        tweetText = regexAt.Replace(tweetText, @"<a href=""https://twitter.com/$0"" target=""_blank"">$0</a>");
-        tweetText = regexHash.Replace(tweetText, @"<a href=""https://twitter.com/search?q=$0"" target=""_blank"">$0</a>");
-
-        // https://twitter.com/search?q=%23hash
-        // https://twitter.com/hashtag/Test2
-        tweetText = tweetText.Replace("?q=#", "?q=%23");
-        tweetText = tweetText.Replace("\n", "<br />");
-        return tweetText;
-    }
+    //public string TweetParser(string tweetText) // #TODO #INPROGRESS
+    //{
+    //    //@ and #
+    //    //tweetText = regexAt.Replace(tweetText, @"<a href=""https://twitter.com/"" target=""_blank"">$0</a>");
+    //    //tweetText = regexHash.Replace(tweetText, @"<a href=""https://twitter.com/search?q=$0"" target=""_blank"">$0</a>");
+    //    // https://twitter.com/search?q=%23hash
+    //    // https://twitter.com/hashtag/Test2
+    //    //tweetText = tweetText.Replace("?q=#", "?q=%23");
+    //    tweetText = tweetText.Replace("\n", "<br />");
+    //    tweetText = tweetText.Replace("  ", "&nbsp;&nbsp;"); // two spaces
+    //    return tweetText;
+    //}
 
     public async Task DeleteTweet(BrowserTweet tweet)
     {
@@ -353,9 +388,7 @@
         l2tTweet.Name = appDataService.Name;
 
         HttpResponseMessage? responseMessage = await Http.PostAsJsonAsync("Tweet/Post", l2tTweet);
-        // #TODO GET NEW ID & ADD TO LOCAL BROWSERTWEETS LIST IF OK RESPONSE
-        l2tTweet = await responseMessage.Content.ReadFromJsonAsync<L2TTweet>
-            (); // l2tTweet is never null
+        l2tTweet = await responseMessage.Content.ReadFromJsonAsync<L2TTweet>(); // l2tTweet is never null
 
         if (responseMessage.IsSuccessStatusCode)
         {
@@ -369,10 +402,16 @@
                 };
             browserTweets?.Insert(0, insertTweetAtTop);
 
+            Console.WriteLine($"***** insertTweetAtTop.TweetId: {insertTweetAtTop.TweetId}");
+
             l2tTweet!.Text = string.Empty;
             l2tTweet.ErrorMessage = string.Empty;
         }
     }
+
+    /// <summary>
+    /// Just for reference
+    /// </summary>
 
     //protected override async Task OnInitializedAsync()
     //{
@@ -395,4 +434,4 @@
     //Console.WriteLine("\n");
     //Console.WriteLine($"***** : {}");
     //Console.WriteLine("\n");
-                    }
+}

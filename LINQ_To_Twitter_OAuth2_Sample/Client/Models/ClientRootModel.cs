@@ -18,7 +18,7 @@ public record ClientUrl
 	[property: JsonPropertyName("display_url")] string? DisplayUrl,
 	[property: JsonPropertyName("end")] int End,
 	[property: JsonPropertyName("expanded_url")] string? ExpandedUrl,
-	[property: JsonPropertyName("images")] object? Images,
+	[property: JsonPropertyName("images")] IEnumerable<ClientImage>? Images,
 	[property: JsonPropertyName("start")] int Start,
 	[property: JsonPropertyName("status")] int? Status,
 	[property: JsonPropertyName("title")] string? Title,

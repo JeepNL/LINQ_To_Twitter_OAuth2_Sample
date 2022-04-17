@@ -1,4 +1,5 @@
 ﻿namespace LINQ_To_Twitter_OAuth2_Sample.Shared.Models;
+//public class L2TBase : ICloneable
 public class L2TBase
 {
 	public string UserId { get; set; } = "0";
@@ -15,6 +16,11 @@ public class L2TBase
 	public bool PrivateAccount { get; set; } = false;
 	public bool VerifiedAccount { get; set; } = false;
 	public string ErrorMessage { get; set; } = "";
+
+	//public object Clone()
+	//{
+	//	return MemberwiseClone();
+	//}
 
 	//public L2TBase(string userId = "0",
 	//				string name = "",

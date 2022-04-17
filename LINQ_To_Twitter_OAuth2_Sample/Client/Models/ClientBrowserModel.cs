@@ -19,8 +19,20 @@
 		public string? ReplySettings { get; set; } // None,Everyone,MentionedUsers,Following
 		public int Likes { get; set; }
 		public int Retweets { get; set; }
-		public int Favorites { get; set; }
+		public int Favorites { get; set; } // #TODO = LIKES
 		public List<BrowserTweetMedia>? MediaList { get; set; }
+		public List<BrowserTweetHashtag>? Hashtags { get; set; }
+		public List<BrowserTweetMention>? Mentions { get; set; }
+	}
+
+	public class BrowserTweetHashtag
+	{
+		public string? Hashtag { get; set; }
+	}
+
+	public class BrowserTweetMention
+	{
+		public string? Mention { get; set; }
 	}
 
 	public class BrowserTweetMedia
